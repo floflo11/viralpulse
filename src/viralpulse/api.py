@@ -279,6 +279,42 @@ def _fmt_num(n: int) -> str:
     return str(n)
 
 
+def _get_thumbnail(post_id: str, platform: str, url: str, media_url: str) -> str:
+    """Extract best thumbnail URL for a post."""
+    if media_url and media_url.startswith("http"):
+        return media_url
+    # For YouTube, construct from video ID
+    if platform == "youtube" and "watch?v=" in url:
+        vid = url.split("watch?v=")[1].split("&")[0]
+        return f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+    # Try raw_data for thumbnails
+    try:
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT raw_data->>'thumbnail_src' as t1, raw_data->>'thumbnail' as t2, raw_data->>'display_url' as t3 FROM posts WHERE id = %s",
+            (post_id,),
+        ).fetchone()
+        conn.close()
+        if row:
+            for key in ["t1", "t2", "t3"]:
+                val = row.get(key)
+                if val and val.startswith("http"):
+                    return val
+    except Exception:
+        pass
+    return ""
+
+
+def _get_embed_html(platform: str, url: str) -> str:
+    """Generate embed HTML for video/content platforms."""
+    if platform == "youtube" and "watch?v=" in url:
+        vid = url.split("watch?v=")[1].split("&")[0]
+        return f'<iframe width="100%" height="315" src="https://www.youtube.com/embed/{vid}" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="border-radius:8px;margin-bottom:12px;"></iframe>'
+    if platform == "tiktok":
+        return f'<blockquote class="tiktok-embed" cite="{url}" data-video-id="" style="max-width:100%;"><section></section></blockquote>'
+    return ""
+
+
 @app.get("/view/posts", include_in_schema=False, response_class=HTMLResponse)
 def view_posts(
     topic: str = Query(...),
@@ -287,7 +323,7 @@ def view_posts(
     limit: int = Query(20, ge=1, le=100),
     days: int = Query(30, ge=1, le=365),
 ):
-    """HTML view of posts — human-readable card layout."""
+    """HTML view of posts — human-readable card layout with media."""
     result = get_posts(topic=topic, platform=platform, sort=sort, limit=limit, days=days)
 
     sort_options = ""
@@ -303,6 +339,7 @@ def view_posts(
         label, color, _ = PLATFORM_ICONS.get(p, (p, "#888", ""))
         platform_filters += f'<a href="/view/posts?topic={topic.replace(" ", "+")}&platform={p}&sort={sort}&limit={limit}" style="{active}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">{label}</a> '
 
+    has_tiktok = False
     cards = ""
     for i, post in enumerate(result.posts):
         p_label, p_color, p_domain = PLATFORM_ICONS.get(post.platform, (post.platform, "#888", ""))
@@ -333,12 +370,26 @@ def view_posts(
             except Exception:
                 pub_date = str(post.published_at)[:10]
 
+        # Media: thumbnail or embed
+        thumb = _get_thumbnail(post.id, post.platform, post.url, post.media_url)
+        embed = _get_embed_html(post.platform, post.url)
+        if post.platform == "tiktok":
+            has_tiktok = True
+
+        media_html = ""
+        if embed and post.platform == "youtube":
+            media_html = f'<div style="margin-bottom:12px;">{embed}</div>'
+        elif embed and post.platform == "tiktok":
+            media_html = f'<div style="margin-bottom:12px;">{embed}</div>'
+        elif thumb:
+            media_html = f'<a href="{post.url}" target="_blank"><img src="{thumb}" alt="" style="width:100%;max-height:360px;object-fit:cover;border-radius:8px;margin-bottom:12px;" loading="lazy" onerror="this.style.display=\'none\'"></a>'
+
         cards += f"""
         <div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:16px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#374151'" onmouseout="this.style.borderColor='#1f2937'">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
             <div style="display:flex;align-items:center;gap:10px;">
               <span style="background:{p_color}22;color:{p_color};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;">{p_label}</span>
-              <a href="{post.author_url or '#'}" style="color:#9ca3af;font-size:13px;text-decoration:none;">{post.author}</a>
+              <a href="{post.author_url or '#'}" target="_blank" style="color:#9ca3af;font-size:13px;text-decoration:none;">{post.author}</a>
               <span style="color:#4b5563;font-size:12px;">{pub_date}</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
@@ -349,12 +400,15 @@ def view_posts(
             </div>
           </div>
           {title_html}
+          {media_html}
           <p style="color:#d1d5db;font-size:14px;line-height:1.6;margin-bottom:12px;">{content_preview}</p>
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div style="display:flex;gap:6px;flex-wrap:wrap;">{engagement_pills}</div>
             <a href="{post.url}" target="_blank" style="color:#60a5fa;font-size:12px;text-decoration:none;white-space:nowrap;">View on {p_label} &#x2197;</a>
           </div>
         </div>"""
+
+    tiktok_script = '<script async src="https://www.tiktok.com/embed.js"></script>' if has_tiktok else ""
 
     json_url = f"/api/v1/posts?topic={topic.replace(' ', '+')}"
     if platform:
@@ -392,6 +446,7 @@ def view_posts(
 
     {cards if cards else '<p style="color:#6b7280;padding:40px 0;text-align:center;">No posts found for this query.</p>'}
   </div>
+  {tiktok_script}
 </body>
 </html>"""
 
