@@ -1,8 +1,5 @@
-INFO:     Started server process [1971848]
+INFO:     Started server process [1976231]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:40910 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:40924 - "GET /skill/viral-writer.md HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42020 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42024 - "GET /skill/viral-writer.md HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34196 - "GET / HTTP/1.1" 200 OK

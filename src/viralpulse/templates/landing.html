@@ -181,21 +181,6 @@
       </div>
     </div>
 
-    <div class="search-section">
-      <div class="search-label">Try a free search — see what's viral for any topic</div>
-      <form class="search-box" id="searchForm" onsubmit="handleSearch(event)">
-        <input type="text" id="searchInput" placeholder="e.g. AI video tools, fitness tips, sourdough bread..." autocomplete="off">
-        <button type="submit"><span class="spinner" id="sp"></span>Search</button>
-      </form>
-      <div class="search-hints">
-        <a onclick="qs('AI video tools')">AI video tools</a>
-        <a onclick="qs('prompt engineering')">prompt engineering</a>
-        <a onclick="qs('Claude Code')">Claude Code</a>
-        <a onclick="qs('content creation tools')">content creation</a>
-        <a onclick="qs('fitness tips')">fitness tips</a>
-      </div>
-    </div>
-
     <!-- Agent Skill — Star Section -->
     <div class="skill-section" id="skill">
       <div class="skill-card">
@@ -231,6 +216,21 @@
         <div class="skill-or">
           Or <a href="/skill/viral-writer.md">view the skill file</a> &middot; Works with Claude Code, Codex, and any agent framework
         </div>
+      </div>
+    </div>
+
+    <div class="search-section" id="search">
+      <div class="search-label">Try a free search — see what's viral for any topic</div>
+      <form class="search-box" id="searchForm" onsubmit="handleSearch(event)">
+        <input type="text" id="searchInput" placeholder="e.g. AI video tools, fitness tips, sourdough bread..." autocomplete="off">
+        <button type="submit"><span class="spinner" id="sp"></span>Search</button>
+      </form>
+      <div class="search-hints">
+        <a onclick="qs('AI video tools')">AI video tools</a>
+        <a onclick="qs('prompt engineering')">prompt engineering</a>
+        <a onclick="qs('Claude Code')">Claude Code</a>
+        <a onclick="qs('content creation tools')">content creation</a>
+        <a onclick="qs('fitness tips')">fitness tips</a>
       </div>
     </div>
 
