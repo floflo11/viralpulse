@@ -265,13 +265,36 @@ def _fmt_num(n: int) -> str:
     return str(n)
 
 
+_tiktok_thumb_cache: dict = {}
+
+
+def _get_tiktok_thumbnail(url: str) -> str:
+    """Fetch TikTok thumbnail via free oEmbed API. Cached in memory."""
+    if url in _tiktok_thumb_cache:
+        return _tiktok_thumb_cache[url]
+    try:
+        import httpx
+        resp = httpx.get(f"https://www.tiktok.com/oembed?url={url}", timeout=5)
+        if resp.status_code == 200:
+            thumb = resp.json().get("thumbnail_url", "")
+            _tiktok_thumb_cache[url] = thumb
+            return thumb
+    except Exception:
+        pass
+    _tiktok_thumb_cache[url] = ""
+    return ""
+
+
 def _get_thumbnail(post_id: str, platform: str, url: str, media_url: str) -> str:
-    """Extract best thumbnail URL for a post. Only return URLs that won't hit login walls."""
-    # YouTube thumbnails always work publicly
+    """Extract best thumbnail URL for a post. Only return URLs that actually work publicly."""
+    # YouTube thumbnails always work
     if platform == "youtube" and "watch?v=" in url:
         vid = url.split("watch?v=")[1].split("&")[0]
         return f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
-    # Reddit/Instagram/TikTok CDN thumbnails often expire or require auth — skip them
+    # TikTok via oEmbed (free, no auth, publicly accessible)
+    if platform == "tiktok" and "tiktok.com" in url:
+        return _get_tiktok_thumbnail(url)
+    # Reddit/Instagram CDN thumbnails expire or require auth — skip
     return ""
 
 
@@ -280,13 +303,17 @@ def _get_embed_html(platform: str, url: str) -> str:
     if platform == "youtube" and "watch?v=" in url:
         vid = url.split("watch?v=")[1].split("&")[0]
         return f'<iframe width="100%" height="315" src="https://www.youtube.com/embed/{vid}" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="border-radius:8px;"></iframe>'
-    if platform == "tiktok":
-        return f'<blockquote class="tiktok-embed" cite="{url}" data-video-id="" style="max-width:100%;"><section></section></blockquote>'
+    # TikTok: use thumbnail image instead of embed widget (faster, more reliable)
+    if platform == "tiktok" and "tiktok.com" in url:
+        thumb = _get_tiktok_thumbnail(url)
+        if thumb:
+            return f'<a href="{url}" target="_blank" style="display:block;position:relative;"><img src="{thumb}" style="width:100%;max-height:400px;object-fit:cover;border-radius:8px;" loading="lazy"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;background:rgba(0,0,0,0.6);border-radius:50%;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>'
+        return ""
     if platform == "instagram" and "/reel/" in url:
         shortcode = url.split("/reel/")[1].strip("/").split("/")[0].split("?")[0]
         return f'<iframe src="https://www.instagram.com/reel/{shortcode}/embed/" width="100%" height="480" frameborder="0" scrolling="no" allowtransparency="true" style="border-radius:8px;background:#000;"></iframe>'
     if platform == "reddit" and "reddit.com" in url:
-        return f'<a href="{url}" target="_blank" style="display:block;background:#1a1a2e;border:1px solid #2d2d44;border-radius:8px;padding:14px 16px;text-decoration:none;color:#d1d5db;font-size:13px;margin-bottom:4px;"><span style="color:#FF4500;font-weight:600;">r/</span> Open on Reddit &#x2197;</a>'
+        return f'<a href="{url}" target="_blank" style="display:block;background:#0d1117;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;text-decoration:none;color:#d1d5db;font-size:13px;"><span style="color:#FF4500;font-weight:600;">r/</span> Open on Reddit &#x2197;</a>'
     return ""
 
 
