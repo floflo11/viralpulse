@@ -1,40 +1,28 @@
-const saveBtn = document.getElementById('saveBtn');
-const noteEl = document.getElementById('note');
-const statusEl = document.getElementById('status');
+const selectBtn = document.getElementById('selectBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
-const pageInfo = document.getElementById('pageInfo');
-const progress = document.getElementById('progress');
-const mainPanel = document.getElementById('mainPanel');
-const successPanel = document.getElementById('successPanel');
-const savedPlatform = document.getElementById('savedPlatform');
-const savedNote = document.getElementById('savedNote');
-const savedCount = document.getElementById('savedCount');
+const statusEl = document.getElementById('status');
+const savedCountEl = document.getElementById('savedCount');
+const libraryLink = document.getElementById('libraryLink');
 
-// Show current page URL
-chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-  if (tab) {
-    pageInfo.textContent = tab.url;
-  }
-});
-
-// Load saved API key
+// Load API key
 chrome.storage.sync.get('apiKey', ({ apiKey }) => {
   if (apiKey) {
     apiKeyInput.value = apiKey;
     apiKeyInput.parentElement.style.display = 'none';
-    // Show saved count
+    libraryLink.href = `https://api.aithatjustworks.com/view/saved?key=${apiKey}`;
     fetchSavedCount(apiKey);
   }
 });
 
-// Save API key on change
+// Save API key
 apiKeyInput.addEventListener('change', () => {
   const key = apiKeyInput.value.trim();
   if (key) {
     chrome.storage.sync.set({ apiKey: key });
-    statusEl.textContent = 'API key saved!';
-    statusEl.className = 'status';
+    libraryLink.href = `https://api.aithatjustworks.com/view/saved?key=${key}`;
+    statusEl.textContent = 'Key saved!';
     statusEl.style.color = '#16a34a';
+    fetchSavedCount(key);
     setTimeout(() => { statusEl.textContent = ''; }, 2000);
   }
 });
@@ -46,78 +34,41 @@ async function fetchSavedCount(apiKey) {
     });
     if (resp.ok) {
       const data = await resp.json();
-      savedCount.innerHTML = `${data.count} posts saved &middot; <a href="https://api.aithatjustworks.com/view/saved?key=${apiKey}" target="_blank">View library</a>`;
+      savedCountEl.textContent = `${data.count} posts saved`;
     }
-  } catch (e) { /* silent */ }
+  } catch (e) { savedCountEl.textContent = ''; }
 }
 
-saveBtn.addEventListener('click', async () => {
+// Main action: activate post selector
+selectBtn.addEventListener('click', async () => {
   const { apiKey } = await chrome.storage.sync.get('apiKey');
   if (!apiKey) {
-    statusEl.textContent = 'Enter your API key below first';
-    statusEl.className = 'status error';
+    statusEl.textContent = 'Enter your API key first';
+    statusEl.style.color = '#dc2626';
     apiKeyInput.parentElement.style.display = 'block';
     apiKeyInput.focus();
     return;
   }
 
-  // UI: saving state
-  saveBtn.disabled = true;
-  saveBtn.textContent = 'Capturing screenshot...';
-  saveBtn.className = 'save-btn saving';
-  progress.classList.add('show');
-  statusEl.textContent = '';
-
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // Try to inject + extract metadata
-    saveBtn.textContent = 'Extracting content...';
-    let metadata = {};
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js'],
-      });
-      await new Promise(r => setTimeout(r, 300));
-      metadata = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_METADATA' });
-    } catch (e) {
-      console.log('Content extraction failed, saving URL + screenshot only:', e);
-      metadata = { author: '', content: '', engagement: {}, hashtags: [] };
-    }
-
-    // Capture + upload
-    saveBtn.textContent = 'Uploading...';
-    const result = await chrome.runtime.sendMessage({
-      type: 'SAVE_POST',
-      metadata,
-      userNote: noteEl.value.trim() || null,
-      tabId: tab.id,
+    // Inject content script
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js'],
     });
 
-    if (result.error) throw new Error(result.error);
+    // Small delay for script to load
+    await new Promise(r => setTimeout(r, 200));
 
-    // Success!
-    progress.classList.remove('show');
-    mainPanel.style.display = 'none';
-    successPanel.classList.add('show');
-    savedPlatform.textContent = result.platform || 'web';
-    if (noteEl.value.trim()) {
-      savedNote.textContent = '"' + noteEl.value.trim() + '"';
-    }
+    // Activate selector mode
+    await chrome.tabs.sendMessage(tab.id, { type: 'ACTIVATE_SELECTOR' });
 
-    // Update count
-    fetchSavedCount(apiKey);
-
-    // Auto-close after 2.5s
-    setTimeout(() => window.close(), 2500);
-
+    // Close popup — user interacts with the page now
+    window.close();
   } catch (e) {
-    progress.classList.remove('show');
-    statusEl.textContent = e.message;
-    statusEl.className = 'status error';
-    saveBtn.disabled = false;
-    saveBtn.textContent = 'Save to Library';
-    saveBtn.className = 'save-btn';
+    statusEl.textContent = 'Cannot access this page';
+    statusEl.style.color = '#dc2626';
   }
 });
