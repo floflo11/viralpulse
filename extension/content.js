@@ -168,8 +168,8 @@ const EXTRACTORS = {
   },
 
   'linkedin.com': {
-    postSelector: '.feed-shared-update-v2, .occludable-update, div[data-urn], .scaffold-finite-scroll__content > div > div',
-    actionBar: '.feed-shared-social-actions, .social-details-social-counts, .feed-shared-update-v2__control-menu',
+    postSelector: '.feed-shared-update-v2, .occludable-update, div[data-urn], div[data-id], [data-chameleon-result-urn], .scaffold-finite-scroll__content > div > div',
+    actionBar: '.feed-shared-social-actions, .social-details-social-counts, .feed-shared-update-v2__control-menu, .social-details-social-activity',
     expand(post) {
       const btn = post.querySelector('.feed-shared-inline-show-more-text, button[aria-expanded="false"], span.lt-line-clamp__more');
       if (btn) { btn.click(); return true; }
@@ -276,10 +276,15 @@ function injectFloatingButton() {
   const fab = document.createElement('button');
   fab.id = 'vp-fab';
   fab.className = 'vp-save-btn';
-  fab.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483640;background:#fff;border:1px solid #e7e5e4;box-shadow:0 2px 12px rgba(0,0,0,0.1);padding:10px 16px;border-radius:12px;font-size:14px;';
-  fab.innerHTML = `${VP_ICON} <span class="vp-label">Save to VP</span>`;
+  fab.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483640;background:#fff;border:1px solid #e7e5e4;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:12px 18px;border-radius:12px;font-size:14px;font-weight:500;';
+  fab.innerHTML = `${VP_ICON} <span class="vp-label">Save this page</span>`;
   fab._vpPostEl = document.body;
-  fab.addEventListener('click', (e) => { e.preventDefault(); handleSaveClick(fab, document.body); });
+  fab.addEventListener('click', (e) => {
+    e.preventDefault();
+    // For LinkedIn, try to find the focused/visible post first
+    const visiblePost = document.querySelector('.feed-shared-update-v2, .occludable-update, div[data-urn], div[data-id]');
+    handleSaveClick(fab, visiblePost || document.body);
+  });
   document.body.appendChild(fab);
 }
 
@@ -288,11 +293,16 @@ function injectFloatingButton() {
 // ==========================================
 
 async function handleSaveClick(btn, postEl) {
-  const { apiKey } = await chrome.storage.sync.get('apiKey');
+  console.log('[VP] Save clicked');
+  try {
+  const result = await chrome.storage.sync.get('apiKey');
+  console.log('[VP] API key result:', result);
+  const apiKey = result.apiKey;
   if (!apiKey) { showToast('Set your API key in the ViralPulse extension popup', 'error'); return; }
 
   const label = btn.querySelector('.vp-label');
   const currentExt = ext;
+  console.log('[VP] Extractor:', currentExt ? 'found' : 'null', 'hostname:', hostname);
 
   // Step 1: Auto-expand
   label.textContent = 'Expanding...';
@@ -345,7 +355,15 @@ async function handleSaveClick(btn, postEl) {
   label.textContent = 'Save';
 
   // Step 4: Show confirmation card
+  console.log('[VP] Showing confirm card with data:', { author: data.author, contentLen: data.content?.length, images: data.images?.length });
   showConfirmCard(data, btn);
+
+  } catch(err) {
+    console.error('[VP] handleSaveClick error:', err);
+    showToast('Error: ' + err.message, 'error');
+    const label = btn?.querySelector('.vp-label');
+    if (label) label.textContent = 'Save';
+  }
 }
 
 // ==========================================
@@ -483,10 +501,18 @@ async function doSave(btn, data, note) {
 // ==========================================
 
 function startObserver() {
+  console.log('[VP] Starting observer on', hostname);
   injectButtons();
+
+  // Always show floating button on LinkedIn (selectors are unreliable)
+  // For other sites, show as fallback if no buttons injected after 3s
+  const alwaysFloat = hostname === 'linkedin.com';
   setTimeout(() => {
-    if (!document.querySelector('[data-vp]')) injectFloatingButton();
-  }, 3000);
+    if (alwaysFloat || !document.querySelector('[data-vp]')) {
+      console.log('[VP] Showing floating button');
+      injectFloatingButton();
+    }
+  }, alwaysFloat ? 1000 : 3000);
 
   new MutationObserver(() => injectButtons()).observe(document.body, { childList: true, subtree: true });
 }
