@@ -43,50 +43,87 @@ SORT_COLUMNS = {
 
 @app.get("/", include_in_schema=False, response_class=HTMLResponse)
 def root():
-    """Landing page with search and topic cards."""
+    """Landing page with search, skill download, and topic dashboard."""
     if not settings.database_url:
         return RedirectResponse("/docs")
 
     try:
         conn = get_conn()
         topics = conn.execute(
-            """SELECT t.name, COUNT(p.id) as post_count
+            """SELECT t.name, t.updated_at,
+                      COUNT(p.id) as post_count,
+                      COUNT(DISTINCT p.platform) as platform_count,
+                      array_agg(DISTINCT p.platform) as platforms
                FROM topics t LEFT JOIN posts p ON p.topic_id = t.id
                WHERE t.enabled = TRUE
                GROUP BY t.id ORDER BY COUNT(p.id) DESC"""
         ).fetchall()
+        total_posts = conn.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
         conn.close()
     except Exception:
         topics = []
+        total_posts = 0
 
-    topic_cards = ""
-    for idx, t in enumerate(topics):
+    platform_colors = {
+        "reddit": "#FF4500", "tiktok": "#00f2ea",
+        "instagram": "#E1306C", "youtube": "#FF0000",
+    }
+    all_plats = ["reddit", "tiktok", "instagram", "youtube"]
+
+    topic_rows = ""
+    for t in topics:
         name = t["name"]
         count = t["post_count"]
         encoded = name.replace(" ", "+")
-        delay = f"animation-delay:{0.4 + idx * 0.08}s;"
-        topic_cards += f"""
-      <a href="/view/posts?topic={encoded}&limit=20" class="topic-card fade-in" style="{delay}">
-        <div class="topic-name">{name}</div>
-        <div class="topic-meta">
-          <span class="topic-count">{count} posts</span>
-          <span>Updated daily</span>
-        </div>
-        <div class="topic-links">
-          <a href="/view/posts?topic={encoded}&sort=engagement&limit=20">Top engagement</a>
-          <a href="/view/posts?topic={encoded}&sort=velocity&limit=20">Fastest rising</a>
-          <a href="/view/posts?topic={encoded}&platform=tiktok&limit=20">TikTok</a>
-          <a href="/view/posts?topic={encoded}&platform=reddit&limit=20">Reddit</a>
-          <a href="/view/posts?topic={encoded}&platform=youtube&limit=20">YouTube</a>
-        </div>
-      </a>"""
+        active_platforms = set(t["platforms"]) if t["platforms"] and t["platforms"][0] else set()
 
-    if not topic_cards:
-        topic_cards = '<p style="color:var(--text-dim);grid-column:1/-1;">No topics yet. Search above to add one.</p>'
+        dots = ""
+        for p in all_plats:
+            color = platform_colors.get(p, "#ccc")
+            active = "active" if p in active_platforms else "inactive"
+            dots += f'<div class="platform-dot {active}" style="background:{color};" title="{p}"></div>'
+
+        updated = ""
+        if t["updated_at"]:
+            try:
+                dt = datetime.fromisoformat(str(t["updated_at"]).replace(" ", "T").split("+")[0])
+                hours = (datetime.now(timezone.utc).replace(tzinfo=None) - dt).total_seconds() / 3600
+                updated = f"{hours:.0f}h ago" if hours < 24 else f"{hours/24:.0f}d ago"
+            except Exception:
+                updated = "recently"
+
+        topic_rows += f"""
+          <tr>
+            <td><a href="/view/posts?topic={encoded}&limit=20" class="topic-link">{name}</a></td>
+            <td><span class="count-badge">{count}</span></td>
+            <td><div class="platform-dots">{dots}</div></td>
+            <td style="color:var(--text-muted);font-size:13px;">{updated}</td>
+            <td>
+              <a href="/view/posts?topic={encoded}&sort=engagement&limit=20" class="view-btn">View</a>
+            </td>
+          </tr>"""
+
+    if not topic_rows:
+        topic_rows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">No topics yet. Search above to add one.</td></tr>'
+
+    api_host = f"http://5.161.65.234:8000"
 
     html = (TEMPLATES_DIR / "landing.html").read_text()
-    html = html.replace("{{TOPIC_CARDS}}", topic_cards)
+    html = html.replace("{{TOPIC_ROWS}}", topic_rows)
+    html = html.replace("{{TOTAL_POSTS}}", str(total_posts))
+    html = html.replace("{{TOPIC_COUNT}}", str(len(topics)))
+    html = html.replace("{{API_HOST}}", api_host)
     return html
+
+
+@app.get("/skill/viral-writer.md", include_in_schema=False)
+def get_skill():
+    """Serve the viral-writer agent skill file."""
+    from fastapi.responses import PlainTextResponse
+    api_host = "http://5.161.65.234:8000"
+    content = (TEMPLATES_DIR / "viral-writer.md").read_text()
+    content = content.replace("{{API_HOST}}", api_host)
+    return PlainTextResponse(content, media_type="text/markdown")
 
 
 @app.get("/api/v1/crawl-and-view", include_in_schema=False)

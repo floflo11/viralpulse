@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ViralPulse — Discover what's going viral</title>
+  <title>ViralPulse — Give your AI agents viral content intelligence</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -14,7 +14,8 @@
       --border: #e7e5e4;
       --border-hover: #d6d3d1;
       --text: #1c1917;
-      --text-secondary: #57534e;
+      --text-2: #44403c;
+      --text-3: #78716c;
       --text-muted: #a8a29e;
       --accent: #dc2626;
       --accent-light: #fef2f2;
@@ -25,306 +26,108 @@
       --font-display: 'Instrument Serif', Georgia, serif;
       --font-body: 'Outfit', system-ui, sans-serif;
       --font-mono: 'IBM Plex Mono', monospace;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow-lg: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.03);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.06);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .container {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 0 24px;
-    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+    .container { max-width: 980px; margin: 0 auto; padding: 0 24px; }
 
     /* Nav */
-    nav {
-      padding: 20px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      font-family: var(--font-mono);
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      letter-spacing: -0.02em;
-    }
+    nav { padding: 20px 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    .nav-logo { font-family: var(--font-mono); font-size: 14px; font-weight: 500; letter-spacing: -0.02em; }
     .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; gap: 24px; }
-    .nav-links a {
-      font-size: 14px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      transition: color 0.15s;
-    }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-links a { font-size: 14px; color: var(--text-3); text-decoration: none; }
     .nav-links a:hover { color: var(--text); }
 
     /* Hero */
-    .hero {
-      padding: 72px 0 56px;
-      max-width: 640px;
-    }
-    .hero-eyebrow {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 16px;
-      opacity: 0; animation: fadeIn 0.5s ease 0.1s forwards;
-    }
-    .hero h1 {
-      font-family: var(--font-display);
-      font-size: clamp(2.8rem, 5.5vw, 4rem);
-      font-weight: 400;
-      line-height: 1.08;
-      letter-spacing: -0.03em;
-      margin-bottom: 20px;
-      opacity: 0; animation: fadeIn 0.5s ease 0.15s forwards;
-    }
+    .hero { padding: 64px 0 48px; max-width: 660px; }
+    .hero-eyebrow { font-family: var(--font-mono); font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; opacity:0; animation: fadeIn .5s ease .1s forwards; }
+    .hero h1 { font-family: var(--font-display); font-size: clamp(2.6rem, 5vw, 3.6rem); font-weight: 400; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 18px; opacity:0; animation: fadeIn .5s ease .15s forwards; }
     .hero h1 em { font-style: italic; }
-    .hero p {
-      font-size: 17px;
-      line-height: 1.65;
-      color: var(--text-secondary);
-      opacity: 0; animation: fadeIn 0.5s ease 0.25s forwards;
-    }
+    .hero p { font-size: 17px; line-height: 1.65; color: var(--text-2); opacity:0; animation: fadeIn .5s ease .25s forwards; }
 
     /* Search */
-    .search-section {
-      padding-bottom: 56px;
-      opacity: 0; animation: fadeIn 0.5s ease 0.35s forwards;
-    }
-    .search-label {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 10px;
-    }
-    .search-box {
-      display: flex;
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .search-box:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(220,38,38,0.08), var(--shadow-lg);
-    }
-    .search-box input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      padding: 16px 20px;
-      font-family: var(--font-body);
-      font-size: 16px;
-      color: var(--text);
-      outline: none;
-    }
+    .search-section { padding-bottom: 48px; opacity:0; animation: fadeIn .5s ease .3s forwards; }
+    .search-label { font-size: 14px; font-weight: 500; color: var(--text-3); margin-bottom: 10px; }
+    .search-box { display: flex; background: var(--surface); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); transition: border-color .2s, box-shadow .2s; }
+    .search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(220,38,38,0.06), var(--shadow-lg); }
+    .search-box input { flex: 1; background: transparent; border: none; padding: 15px 20px; font-family: var(--font-body); font-size: 16px; color: var(--text); outline: none; }
     .search-box input::placeholder { color: var(--text-muted); }
-    .search-box button {
-      background: var(--text);
-      border: none;
-      padding: 16px 28px;
-      font-family: var(--font-body);
-      font-size: 14px;
-      font-weight: 600;
-      color: white;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
+    .search-box button { background: var(--text); border: none; padding: 15px 28px; font-family: var(--font-body); font-size: 14px; font-weight: 600; color: white; cursor: pointer; }
     .search-box button:hover { background: #292524; }
-    .search-hints {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .search-hints a {
-      font-size: 13px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      padding: 5px 12px;
-      border-radius: 20px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .search-hints a:hover {
-      background: var(--surface-alt);
-      border-color: var(--border-hover);
-      color: var(--text);
-    }
+    .search-hints { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .search-hints a { font-size: 13px; color: var(--text-3); text-decoration: none; padding: 5px 12px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: all .12s; }
+    .search-hints a:hover { background: var(--surface-alt); border-color: var(--border-hover); color: var(--text); }
 
-    /* Section headers */
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    .section-title {
-      font-family: var(--font-display);
-      font-size: 24px;
-      font-weight: 400;
-    }
-    .section-meta {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
+    /* Skill CTA — the star section */
+    .skill-section { margin-bottom: 56px; opacity:0; animation: fadeIn .5s ease .4s forwards; }
+    .skill-card { background: var(--surface); border: 2px solid var(--text); border-radius: 14px; overflow: hidden; }
+    .skill-header { padding: 28px 28px 0; }
+    .skill-badge { display: inline-block; font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--accent); background: var(--accent-light); padding: 4px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+    .skill-header h2 { font-family: var(--font-display); font-size: 28px; font-weight: 400; margin-bottom: 10px; }
+    .skill-header p { font-size: 15px; color: var(--text-2); line-height: 1.6; max-width: 560px; }
+    .skill-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 24px 28px; }
+    .skill-feat { display: flex; gap: 10px; align-items: flex-start; }
+    .skill-feat .icon { width: 20px; height: 20px; color: var(--green); flex-shrink: 0; margin-top: 1px; }
+    .skill-feat .label { font-size: 14px; color: var(--text-2); line-height: 1.4; }
+    .skill-feat .label strong { color: var(--text); }
+    .skill-install { padding: 0 28px 28px; }
+    .skill-install-box { background: var(--text); border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .skill-install-box code { font-family: var(--font-mono); font-size: 14px; color: #e7e5e4; }
+    .skill-install-box code span { color: var(--accent); }
+    .skill-install-box button { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-family: var(--font-body); }
+    .skill-install-box button:hover { background: rgba(255,255,255,0.2); }
+    .skill-or { text-align: center; padding: 0 28px 20px; font-size: 13px; color: var(--text-muted); }
+    .skill-or a { color: var(--blue); text-decoration: none; font-weight: 500; }
+    .skill-or a:hover { text-decoration: underline; }
 
-    /* Topic cards */
-    .topics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 16px;
-      margin-bottom: 72px;
-    }
-    .topic-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      text-decoration: none;
-      color: var(--text);
-      transition: all 0.2s;
-      display: block;
-    }
-    .topic-card:hover {
-      border-color: var(--border-hover);
-      box-shadow: var(--shadow-lg);
-      transform: translateY(-1px);
-    }
-    .topic-name {
-      font-weight: 600;
-      font-size: 16px;
-      margin-bottom: 6px;
-    }
-    .topic-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 14px;
-    }
-    .topic-count {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--accent);
-      background: var(--accent-light);
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-    .topic-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-    }
-    .topic-links a {
-      font-size: 12px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      padding: 4px 10px;
-      border-radius: 6px;
-      background: var(--surface-alt);
-      transition: all 0.12s;
-    }
-    .topic-links a:hover {
-      background: var(--border);
-      color: var(--text);
-    }
+    /* Topics dashboard */
+    .section-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .section-title { font-family: var(--font-display); font-size: 24px; }
+    .section-meta { font-size: 13px; color: var(--text-muted); }
+
+    .topics-table { width: 100%; border-collapse: collapse; margin-bottom: 56px; }
+    .topics-table th { text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 500; }
+    .topics-table td { padding: 14px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+    .topics-table tr:hover td { background: var(--surface-alt); }
+    .topics-table .topic-link { color: var(--text); font-weight: 600; text-decoration: none; }
+    .topics-table .topic-link:hover { color: var(--accent); }
+    .platform-dots { display: flex; gap: 4px; }
+    .platform-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .platform-dot.active { opacity: 1; }
+    .platform-dot.inactive { opacity: 0.15; }
+    .count-badge { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+    .view-btn { font-size: 12px; color: var(--blue); text-decoration: none; font-weight: 500; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); transition: all .12s; }
+    .view-btn:hover { background: var(--surface-alt); border-color: var(--border-hover); }
 
     /* API section */
-    .api-section { margin-bottom: 72px; }
-    .api-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    .api-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 20px;
-      background: var(--surface-alt);
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-    .api-bar .label {
-      font-family: var(--font-mono);
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
+    .api-section { margin-bottom: 56px; }
+    .api-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .api-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 13px; }
+    .api-bar .lbl { font-family: var(--font-mono); font-weight: 500; color: var(--text-3); }
     .api-bar a { color: var(--accent); text-decoration: none; font-weight: 500; }
-    .api-bar a:hover { text-decoration: underline; }
-    .api-code {
-      padding: 20px;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 2;
-      color: var(--text-secondary);
-      overflow-x: auto;
-    }
+    .api-code { padding: 18px 20px; font-family: var(--font-mono); font-size: 13px; line-height: 2; color: var(--text-3); overflow-x: auto; }
     .api-code .m { color: var(--green); font-weight: 500; }
     .api-code .p { color: var(--text); }
     .api-code .q { color: var(--amber); }
-    .api-code .c { color: var(--text-muted); font-style: italic; }
+    .api-code .c { color: var(--text-muted); }
 
     /* Footer */
-    footer {
-      padding: 24px 0 40px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-    footer a { color: var(--text-secondary); text-decoration: none; }
+    footer { padding: 24px 0 40px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--text-muted); }
+    footer a { color: var(--text-3); text-decoration: none; }
     footer a:hover { color: var(--text); }
 
-    /* Loading */
-    .spinner { display: none; }
-    .spinner.active {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.5s linear infinite;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
+    .spinner { display:none; }
+    .spinner.active { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin .5s linear infinite; margin-right:8px; vertical-align:middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .fade-in { opacity: 0; animation: fadeIn 0.4s ease forwards; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { opacity:0; animation: fadeIn .4s ease forwards; }
+
+    .copied-toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--text); color:white; padding:10px 20px; border-radius:8px; font-size:14px; display:none; z-index:100; }
+    .copied-toast.show { display:block; animation: fadeIn .2s ease forwards; }
   </style>
 </head>
 <body>
@@ -332,22 +135,23 @@
     <nav>
       <div class="nav-logo"><span>Viral</span>Pulse</div>
       <div class="nav-links">
-        <a href="/docs">API Docs</a>
-        <a href="/api/v1/topics">Topics</a>
-        <a href="/api/v1/health">Status</a>
+        <a href="#skill">Agent Skill</a>
+        <a href="#topics">Topics</a>
+        <a href="#api">API</a>
+        <a href="/docs">Docs</a>
       </div>
     </nav>
 
     <div class="hero">
-      <div class="hero-eyebrow">Cross-platform viral content intelligence</div>
-      <h1>Discover what's going <em>viral</em> right now</h1>
-      <p>Search any topic to see the top-performing posts across Reddit, TikTok, X, Instagram, and YouTube. Real engagement data, scored and ranked for content creators and AI agents.</p>
+      <div class="hero-eyebrow">Viral content intelligence</div>
+      <h1>Give your AI agents the power to write <em>viral posts</em></h1>
+      <p>ViralPulse crawls Reddit, TikTok, Instagram, and YouTube daily, scores every post by real engagement, and serves the top performers via API. Your agents study what actually goes viral — then create content that follows the same patterns.</p>
     </div>
 
     <div class="search-section">
-      <div class="search-label">Try a free search</div>
+      <div class="search-label">Try a free search — see what's viral for any topic</div>
       <form class="search-box" id="searchForm" onsubmit="handleSearch(event)">
-        <input type="text" id="searchInput" placeholder="Search any topic... e.g. AI video tools, fitness tips, web3" autocomplete="off">
+        <input type="text" id="searchInput" placeholder="e.g. AI video tools, fitness tips, sourdough bread..." autocomplete="off">
         <button type="submit"><span class="spinner" id="sp"></span>Search</button>
       </form>
       <div class="search-hints">
@@ -356,43 +160,96 @@
         <a onclick="qs('Claude Code')">Claude Code</a>
         <a onclick="qs('content creation tools')">content creation</a>
         <a onclick="qs('fitness tips')">fitness tips</a>
-        <a onclick="qs('sourdough bread')">sourdough bread</a>
       </div>
     </div>
 
-    <div class="section-header">
-      <div class="section-title">Tracked topics</div>
-      <div class="section-meta">Updated daily across 4 platforms</div>
-    </div>
-    <div class="topics-grid" id="topicsGrid">
-      {{TOPIC_CARDS}}
+    <!-- Agent Skill — Star Section -->
+    <div class="skill-section" id="skill">
+      <div class="skill-card">
+        <div class="skill-header">
+          <div class="skill-badge">Agent Skill</div>
+          <h2>Write the most viral post for any topic</h2>
+          <p>Give your AI agent a single skill that fetches real viral posts from ViralPulse, analyzes what makes them perform, and generates new content optimized for virality in your domain.</p>
+        </div>
+        <div class="skill-features">
+          <div class="skill-feat">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <div class="label"><strong>Real data</strong> — studies actual viral posts with real engagement numbers, not guesses</div>
+          </div>
+          <div class="skill-feat">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <div class="label"><strong>Cross-platform</strong> — learns patterns from Reddit, TikTok, YouTube, Instagram</div>
+          </div>
+          <div class="skill-feat">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <div class="label"><strong>Any topic</strong> — AI tools, fitness, cooking, crypto, music — whatever your niche</div>
+          </div>
+          <div class="skill-feat">
+            <svg class="icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+            <div class="label"><strong>Fresh daily</strong> — always current, never stale — knows what's trending right now</div>
+          </div>
+        </div>
+        <div class="skill-install">
+          <div class="skill-install-box">
+            <code>curl <span>{{API_HOST}}</span>/skill/viral-writer.md -o viral-writer.md</code>
+            <button onclick="copySkill()">Copy</button>
+          </div>
+        </div>
+        <div class="skill-or">
+          Or <a href="/skill/viral-writer.md">view the skill file</a> &middot; Works with Claude Code, Codex, and any agent framework
+        </div>
+      </div>
     </div>
 
-    <div class="api-section">
+    <!-- Topics Dashboard -->
+    <div id="topics">
+      <div class="section-header">
+        <div class="section-title">Tracked topics</div>
+        <div class="section-meta">{{TOTAL_POSTS}} posts across {{TOPIC_COUNT}} topics &middot; updated daily</div>
+      </div>
+      <table class="topics-table">
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Posts</th>
+            <th>Platforms</th>
+            <th>Last updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{TOPIC_ROWS}}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- API -->
+    <div class="api-section" id="api">
       <div class="section-header">
         <div class="section-title">API</div>
-        <div class="section-meta">Built for AI agents</div>
+        <div class="section-meta">No auth required</div>
       </div>
       <div class="api-card">
         <div class="api-bar">
-          <span class="label">REST API &mdash; No auth required</span>
-          <a href="/docs">Open Swagger docs &rarr;</a>
+          <span class="lbl">REST API</span>
+          <a href="/docs">Swagger docs &rarr;</a>
         </div>
         <div class="api-code">
 <span class="m">GET</span> <span class="p">/api/v1/posts</span><span class="q">?topic=</span>AI+video+tools<span class="q">&amp;sort=</span>composite<span class="q">&amp;limit=</span>20<br>
 <span class="m">GET</span> <span class="p">/api/v1/posts</span><span class="q">?topic=</span>...<span class="q">&amp;platform=</span>tiktok<span class="q">&amp;sort=</span>engagement<br>
 <span class="m">GET</span> <span class="p">/api/v1/topics</span> <span class="c">// list all topics</span><br>
-<span class="m">POST</span> <span class="p">/api/v1/topics</span><span class="q">?name=</span>your+topic <span class="c">// add a topic</span><br>
-<span class="c">// Sorts: composite, engagement, velocity, relevance, recent</span>
+<span class="m">POST</span> <span class="p">/api/v1/topics</span><span class="q">?name=</span>your+topic <span class="c">// add a topic</span>
         </div>
       </div>
     </div>
 
     <footer>
-      <span>ViralPulse &middot; Reddit &middot; TikTok &middot; Instagram &middot; YouTube &middot; X</span>
-      <span><a href="/docs">Docs</a> &middot; <a href="/api/v1/health">Health</a></span>
+      <span>ViralPulse &middot; Reddit &middot; TikTok &middot; Instagram &middot; YouTube</span>
+      <a href="/docs">API Docs</a>
     </footer>
   </div>
+
+  <div class="copied-toast" id="toast">Copied to clipboard</div>
 
   <script>
     function handleSearch(e) {
@@ -401,16 +258,17 @@
       if (!q) return;
       document.getElementById('sp').classList.add('active');
       fetch('/api/v1/topics?name=' + encodeURIComponent(q), { method: 'POST' })
-        .then(() => {
-          window.location.href = '/api/v1/crawl-and-view?topic=' + encodeURIComponent(q);
-        })
-        .catch(() => {
-          window.location.href = '/view/posts?topic=' + encodeURIComponent(q) + '&limit=20';
-        });
+        .then(() => { window.location.href = '/api/v1/crawl-and-view?topic=' + encodeURIComponent(q); })
+        .catch(() => { window.location.href = '/view/posts?topic=' + encodeURIComponent(q) + '&limit=20'; });
     }
-    function qs(q) {
-      document.getElementById('searchInput').value = q;
-      handleSearch(new Event('submit'));
+    function qs(q) { document.getElementById('searchInput').value = q; handleSearch(new Event('submit')); }
+    function copySkill() {
+      const cmd = document.querySelector('.skill-install-box code').textContent;
+      navigator.clipboard.writeText(cmd).then(() => {
+        const t = document.getElementById('toast');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+      });
     }
   </script>
 </body>
