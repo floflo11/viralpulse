@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from viralpulse.config import settings
 from viralpulse.db import get_conn, init_db
@@ -35,6 +36,11 @@ SORT_COLUMNS = {
     "relevance": "s.relevance",
     "recent": "p.published_at",
 }
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/docs")
 
 
 @app.on_event("startup")
