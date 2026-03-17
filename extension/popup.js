@@ -46,7 +46,7 @@ async function fetchSavedCount(apiKey) {
     });
     if (resp.ok) {
       const data = await resp.json();
-      savedCount.innerHTML = `${data.count} posts saved &middot; <a href="https://api.aithatjustworks.com/api/v1/saved" target="_blank">View library</a>`;
+      savedCount.innerHTML = `${data.count} posts saved &middot; <a href="https://api.aithatjustworks.com/view/saved?key=${apiKey}" target="_blank">View library</a>`;
     }
   } catch (e) { /* silent */ }
 }

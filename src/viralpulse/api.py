@@ -677,6 +677,107 @@ def crawl_profile(platform: str = Query(...), handle: str = Query(...)):
     return RedirectResponse(f"/view/profile?handle={handle}&platform={platform}")
 
 
+@app.get("/view/saved", include_in_schema=False, response_class=HTMLResponse)
+def view_saved(
+    key: str = Query(..., description="API key"),
+    query: str = Query(None),
+    platform: str = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """HTML view of a user's saved posts library."""
+    user = get_user_by_key(key)
+    if not user:
+        return HTMLResponse("<h1>Invalid API key</h1>", status_code=403)
+
+    conn = get_conn()
+    sql = "SELECT * FROM saved_posts WHERE user_id = %s"
+    params = [str(user["id"])]
+    if platform:
+        sql += " AND platform = %s"
+        params.append(platform)
+    if query:
+        sql += " AND (content ILIKE %s OR author ILIKE %s OR user_note ILIKE %s)"
+        q = f"%{query}%"
+        params.extend([q, q, q])
+    sql += " ORDER BY created_at DESC LIMIT %s"
+    params.append(limit)
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    cards = ""
+    for i, r in enumerate(rows):
+        p = r.get("platform", "web")
+        p_label, p_color, _ = PLATFORM_ICONS.get(p, (p, "#888", ""))
+        content = (r.get("content") or "")[:200]
+        if len(r.get("content") or "") > 200:
+            content += "..."
+        note = r.get("user_note") or ""
+        ss = r.get("screenshot_url") or ""
+        status = r.get("status", "pending")
+        url = r.get("url", "")
+
+        pub = ""
+        if r.get("created_at"):
+            try:
+                dt = datetime.fromisoformat(str(r["created_at"]).replace(" ", "T").split("+")[0])
+                pub = dt.strftime("%b %d, %Y %H:%M")
+            except Exception:
+                pass
+
+        screenshot_html = ""
+        if ss:
+            screenshot_html = f'<a href="{ss}" target="_blank"><img src="{ss}" style="width:100%;max-height:300px;object-fit:cover;border-radius:8px;margin-bottom:10px;" loading="lazy" onerror="this.style.display=\'none\'"></a>'
+
+        note_html = f'<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400e;margin-bottom:8px;">Note: {note}</div>' if note else ""
+
+        status_color = "#16a34a" if status == "enriched" else "#d97706" if status == "pending" else "#dc2626"
+
+        cards += f"""
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:10px;padding:16px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="background:{p_color}15;color:{p_color};padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;">{p_label}</span>
+              <span style="color:#a8a29e;font-size:11px;">{pub}</span>
+              <span style="width:6px;height:6px;border-radius:50%;background:{status_color};display:inline-block;" title="{status}"></span>
+            </div>
+            <a href="{url}" target="_blank" style="color:#2563eb;font-size:11px;text-decoration:none;font-weight:500;">Open &rarr;</a>
+          </div>
+          {note_html}
+          {screenshot_html}
+          <p style="color:#44403c;font-size:13px;line-height:1.5;">{content if content else '<span style=\"color:#a8a29e;\">No content extracted</span>'}</p>
+          <div style="margin-top:6px;font-size:11px;color:#a8a29e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{url}</div>
+        </div>"""
+
+    filter_pills = f'<a href="/view/saved?key={key}" style="padding:5px 12px;border-radius:20px;font-size:12px;text-decoration:none;{"background:#1c1917;color:#fff;" if not platform else "background:#fff;color:#57534e;border:1px solid #e7e5e4;"}">All</a> '
+    for plat in ["twitter", "reddit", "tiktok", "instagram", "youtube", "linkedin", "web"]:
+        active = "background:#1c1917;color:#fff;" if plat == platform else "background:#fff;color:#57534e;border:1px solid #e7e5e4;"
+        label = PLATFORM_ICONS.get(plat, (plat, "#888", ""))[0]
+        filter_pills += f'<a href="/view/saved?key={key}&platform={plat}" style="padding:5px 12px;border-radius:20px;font-size:12px;text-decoration:none;{active}">{label}</a> '
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <title>My Library — ViralPulse</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {{ margin:0; padding:0; box-sizing:border-box; }}
+    body {{ background:#fafaf9; color:#1c1917; font-family:'Outfit',system-ui,sans-serif; padding:32px 20px; }}
+    .container {{ max-width:800px; margin:0 auto; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" style="color:#a8a29e;font-size:13px;text-decoration:none;">&larr; Back</a>
+    <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:2em;font-weight:400;margin-top:8px;">My Library</h1>
+    <p style="color:#78716c;font-size:14px;margin:6px 0 20px;">{len(rows)} saved posts &middot; {user['name']}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:24px;">{filter_pills}</div>
+    {cards if cards else '<p style="color:#a8a29e;text-align:center;padding:48px 0;">No saved posts yet. Use the Chrome extension to save posts!</p>'}
+  </div>
+</body>
+</html>"""
+
+
 @app.get("/view/profile", include_in_schema=False, response_class=HTMLResponse)
 def view_profile(
     handle: str = Query(...),
