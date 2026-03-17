@@ -88,9 +88,32 @@ Tell the user:
 3. Generate the caption following those patterns
 4. Explain: "Based on 20 viral TikToks about AI video editing (top post: 516K views, 33K likes), I used the 'This [tool] just changed everything' hook which appears in 4 of the top 10 posts..."
 
+## Using the user's saved posts
+
+If the user provides a ViralPulse API key, also fetch their personal collection:
+
+```
+GET /api/v1/saved?query={topic}&limit=20
+Header: X-API-Key: {user's key}
+```
+
+These are posts the user personally curated as examples of great content.
+Weight these higher than trending data — the user saved them because they
+represent the style, format, or voice they want to emulate.
+
+Combine both sources:
+1. `GET /api/v1/posts?topic=...&limit=20` — what's trending (public data, no auth needed)
+2. `GET /api/v1/saved?query=...&limit=20` — what the user has been collecting (requires API key)
+
+The user's saved posts include `screenshot_url` — if using Claude vision,
+you can analyze the visual format and layout of the original posts.
+
+The `limit` parameter is configurable: use `limit=5` for a quick scan or `limit=100` for deep research.
+
 ## Notes
 
 - The API returns real engagement numbers (views, likes, comments, shares) — use these to back up your choices
 - Data is refreshed daily — patterns reflect what's working RIGHT NOW
 - If a topic has no data yet, the search will crawl it live (takes ~30 seconds)
-- No API key needed
+- Public trending data (`/api/v1/posts`) requires no API key
+- Saved posts (`/api/v1/saved`) require the user's `X-API-Key` header

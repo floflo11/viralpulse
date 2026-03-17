@@ -189,6 +189,41 @@ def cmd_serve(args):
     uvicorn.run("viralpulse.api:app", host=args.host, port=args.port, reload=args.reload)
 
 
+def cmd_user_create(args):
+    init_db()
+    from viralpulse.auth import generate_api_key
+    conn = get_conn()
+    api_key = generate_api_key()
+    row = conn.execute(
+        "INSERT INTO users (api_key, name, email) VALUES (%s, %s, %s) RETURNING *",
+        (api_key, args.name, args.email),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    print(f"User created: {row['name']}")
+    print(f"API Key: {row['api_key']}")
+    print(f"Save this key — it won't be shown again.")
+
+
+def cmd_user_list(args):
+    init_db()
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT u.*, COUNT(sp.id) as saved_count
+           FROM users u LEFT JOIN saved_posts sp ON sp.user_id = u.id
+           GROUP BY u.id ORDER BY u.created_at"""
+    ).fetchall()
+    conn.close()
+    if not rows:
+        print("No users. Create one: viralpulse user create \"Your Name\"")
+        return
+    print(f"{'Name':<20} {'Key':<30} {'Saved':<8}")
+    print("-" * 60)
+    for r in rows:
+        key_preview = r['api_key'][:10] + "..."
+        print(f"{r['name']:<20} {key_preview:<30} {r['saved_count']:<8}")
+
+
 def main():
     parser = argparse.ArgumentParser(prog="viralpulse", description="ViralPulse — viral social media post aggregator")
     sub = parser.add_subparsers(dest="command")
@@ -226,6 +261,18 @@ def main():
     crawl_prof.add_argument("handle")
     crawl_prof.set_defaults(func=cmd_profile_crawl)
 
+    # user subcommands
+    user_parser = sub.add_parser("user", help="Manage users")
+    user_sub = user_parser.add_subparsers(dest="user_command")
+
+    create_u = user_sub.add_parser("create", help="Create a user")
+    create_u.add_argument("name", help="User name")
+    create_u.add_argument("--email", default=None)
+    create_u.set_defaults(func=cmd_user_create)
+
+    list_u = user_sub.add_parser("list", help="List users")
+    list_u.set_defaults(func=cmd_user_list)
+
     # crawl
     crawl_p = sub.add_parser("crawl", help="Run crawler")
     crawl_p.add_argument("--topic", help="Crawl specific topic (default: all)")
@@ -253,6 +300,10 @@ def main():
 
     if args.command == "profile" and not getattr(args, "profile_command", None):
         profile_parser.print_help()
+        sys.exit(1)
+
+    if args.command == "user" and not getattr(args, "user_command", None):
+        user_parser.print_help()
         sys.exit(1)
 
     args.func(args)
