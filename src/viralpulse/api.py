@@ -69,12 +69,12 @@ def root():
             <span style="color:#888;font-size:13px;">{count} posts</span>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            <a href="/api/v1/posts?topic={encoded}&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Top 5 (all platforms)</a>
-            <a href="/api/v1/posts?topic={encoded}&platform=tiktok&sort=engagement&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">TikTok by engagement</a>
-            <a href="/api/v1/posts?topic={encoded}&platform=reddit&sort=composite&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Reddit top composite</a>
-            <a href="/api/v1/posts?topic={encoded}&platform=youtube&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">YouTube top 5</a>
-            <a href="/api/v1/posts?topic={encoded}&sort=velocity&limit=10" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Fastest rising (velocity)</a>
-            <a href="/api/v1/posts?topic={encoded}&sort=recent&limit=10" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Most recent</a>
+            <a href="/view/posts?topic={encoded}&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Top 5 (all platforms)</a>
+            <a href="/view/posts?topic={encoded}&platform=tiktok&sort=engagement&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">TikTok by engagement</a>
+            <a href="/view/posts?topic={encoded}&platform=reddit&sort=composite&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Reddit top composite</a>
+            <a href="/view/posts?topic={encoded}&platform=youtube&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">YouTube top 5</a>
+            <a href="/view/posts?topic={encoded}&sort=velocity&limit=10" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Fastest rising (velocity)</a>
+            <a href="/view/posts?topic={encoded}&sort=recent&limit=10" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Most recent</a>
           </div>
         </div>"""
 
@@ -259,6 +259,141 @@ def get_posts(
         fetched_at=datetime.now(timezone.utc).isoformat(),
         posts=posts,
     )
+
+
+PLATFORM_ICONS = {
+    "reddit": ("Reddit", "#FF4500", "reddit.com"),
+    "tiktok": ("TikTok", "#00f2ea", "tiktok.com"),
+    "instagram": ("Instagram", "#E1306C", "instagram.com"),
+    "youtube": ("YouTube", "#FF0000", "youtube.com"),
+    "twitter": ("X/Twitter", "#1DA1F2", "x.com"),
+    "linkedin": ("LinkedIn", "#0A66C2", "linkedin.com"),
+}
+
+
+def _fmt_num(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}K"
+    return str(n)
+
+
+@app.get("/view/posts", include_in_schema=False, response_class=HTMLResponse)
+def view_posts(
+    topic: str = Query(...),
+    platform: Optional[str] = Query(None),
+    sort: str = Query("composite"),
+    limit: int = Query(20, ge=1, le=100),
+    days: int = Query(30, ge=1, le=365),
+):
+    """HTML view of posts — human-readable card layout."""
+    result = get_posts(topic=topic, platform=platform, sort=sort, limit=limit, days=days)
+
+    sort_options = ""
+    for s in ["composite", "engagement", "velocity", "relevance", "recent"]:
+        active = "background:#e94560;color:#fff;" if s == sort else "background:#1a1a2e;color:#aaa;"
+        encoded_topic = topic.replace(" ", "+")
+        plat_param = f"&platform={platform}" if platform else ""
+        sort_options += f'<a href="/view/posts?topic={encoded_topic}{plat_param}&sort={s}&limit={limit}" style="{active}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">{s}</a> '
+
+    platform_filters = f'<a href="/view/posts?topic={topic.replace(" ", "+")}&sort={sort}&limit={limit}" style="{"background:#e94560;color:#fff;" if not platform else "background:#1a1a2e;color:#aaa;"}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">All</a> '
+    for p in ALL_PLATFORMS:
+        active = "background:#e94560;color:#fff;" if p == platform else "background:#1a1a2e;color:#aaa;"
+        label, color, _ = PLATFORM_ICONS.get(p, (p, "#888", ""))
+        platform_filters += f'<a href="/view/posts?topic={topic.replace(" ", "+")}&platform={p}&sort={sort}&limit={limit}" style="{active}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">{label}</a> '
+
+    cards = ""
+    for i, post in enumerate(result.posts):
+        p_label, p_color, p_domain = PLATFORM_ICONS.get(post.platform, (post.platform, "#888", ""))
+        score_pct = int(post.scores.composite * 100)
+        score_bar_color = "#4ade80" if score_pct >= 70 else "#facc15" if score_pct >= 40 else "#f87171"
+
+        content_preview = (post.content or "")[:280]
+        if len(post.content or "") > 280:
+            content_preview += "..."
+
+        title_html = f'<div style="font-weight:600;font-size:15px;margin-bottom:6px;color:#fff;">{post.title}</div>' if post.title else ""
+
+        engagement_pills = ""
+        if post.engagement.views:
+            engagement_pills += f'<span style="background:#1a1a2e;padding:4px 10px;border-radius:20px;font-size:12px;">&#x25B6; {_fmt_num(post.engagement.views)}</span>'
+        if post.engagement.likes:
+            engagement_pills += f'<span style="background:#1a1a2e;padding:4px 10px;border-radius:20px;font-size:12px;">&#x2764; {_fmt_num(post.engagement.likes)}</span>'
+        if post.engagement.comments:
+            engagement_pills += f'<span style="background:#1a1a2e;padding:4px 10px;border-radius:20px;font-size:12px;">&#x1F4AC; {_fmt_num(post.engagement.comments)}</span>'
+        if post.engagement.shares:
+            engagement_pills += f'<span style="background:#1a1a2e;padding:4px 10px;border-radius:20px;font-size:12px;">&#x21A9; {_fmt_num(post.engagement.shares)}</span>'
+
+        pub_date = ""
+        if post.published_at:
+            try:
+                dt = datetime.fromisoformat(str(post.published_at).replace(" ", "T").split("+")[0])
+                pub_date = dt.strftime("%b %d, %Y")
+            except Exception:
+                pub_date = str(post.published_at)[:10]
+
+        cards += f"""
+        <div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:16px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#374151'" onmouseout="this.style.borderColor='#1f2937'">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="background:{p_color}22;color:{p_color};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;">{p_label}</span>
+              <a href="{post.author_url or '#'}" style="color:#9ca3af;font-size:13px;text-decoration:none;">{post.author}</a>
+              <span style="color:#4b5563;font-size:12px;">{pub_date}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:40px;height:6px;background:#1f2937;border-radius:3px;overflow:hidden;">
+                <div style="width:{score_pct}%;height:100%;background:{score_bar_color};border-radius:3px;"></div>
+              </div>
+              <span style="color:{score_bar_color};font-size:12px;font-weight:600;">{score_pct}</span>
+            </div>
+          </div>
+          {title_html}
+          <p style="color:#d1d5db;font-size:14px;line-height:1.6;margin-bottom:12px;">{content_preview}</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">{engagement_pills}</div>
+            <a href="{post.url}" target="_blank" style="color:#60a5fa;font-size:12px;text-decoration:none;white-space:nowrap;">View on {p_label} &#x2197;</a>
+          </div>
+        </div>"""
+
+    json_url = f"/api/v1/posts?topic={topic.replace(' ', '+')}"
+    if platform:
+        json_url += f"&platform={platform}"
+    json_url += f"&sort={sort}&limit={limit}"
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <title>{topic} — ViralPulse</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * {{ margin:0; padding:0; box-sizing:border-box; }}
+    body {{ background:#0a0a1a; color:#e2e2e2; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; padding:32px 20px; }}
+    .container {{ max-width:860px; margin:0 auto; }}
+    a {{ color:#60a5fa; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="margin-bottom:28px;">
+      <a href="/" style="color:#6b7280;text-decoration:none;font-size:13px;">&larr; Back to topics</a>
+      <h1 style="font-size:1.8em;margin-top:8px;">{topic}</h1>
+      <p style="color:#6b7280;font-size:14px;margin-top:4px;">{result.count} posts &middot; sorted by {sort} &middot; <a href="{json_url}" style="font-size:13px;">JSON API</a></p>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="margin-bottom:8px;color:#9ca3af;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Platform</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">{platform_filters}</div>
+    </div>
+    <div style="margin-bottom:24px;">
+      <div style="margin-bottom:8px;color:#9ca3af;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Sort by</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">{sort_options}</div>
+    </div>
+
+    {cards if cards else '<p style="color:#6b7280;padding:40px 0;text-align:center;">No posts found for this query.</p>'}
+  </div>
+</body>
+</html>"""
 
 
 @app.get("/api/v1/posts/{post_id}")
