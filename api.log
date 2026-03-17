@@ -4,3 +4,4 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 INFO:     127.0.0.1:44592 - "GET /api/v1/profiles HTTP/1.1" 200 OK
 INFO:     127.0.0.1:34596 - "GET /view/profile?handle=OpenAI&platform=twitter HTTP/1.1" 200 OK
+INFO:     87.236.176.146:33247 - "GET / HTTP/1.1" 200 OK
