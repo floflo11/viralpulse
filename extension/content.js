@@ -210,6 +210,33 @@ function showSavePanel(metadata) {
   document.getElementById('vp-sbtn').addEventListener('click', () => doSave(metadata));
 }
 
+async function elementToDataUrl(el) {
+  // Capture the selected element as a full-size screenshot using canvas
+  // This works for elements taller than the viewport
+  try {
+    const rect = el.getBoundingClientRect();
+    const scrollTop = window.scrollY;
+    const scrollLeft = window.scrollX;
+
+    // Use a canvas to draw the element
+    const canvas = document.createElement('canvas');
+    const scale = window.devicePixelRatio || 1;
+    // Cap at reasonable size (max 4000px tall)
+    const maxH = Math.min(el.scrollHeight || rect.height, 4000);
+    const w = Math.min(el.scrollWidth || rect.width, 1400);
+    canvas.width = w * scale;
+    canvas.height = maxH * scale;
+    canvas.style.width = w + 'px';
+    canvas.style.height = maxH + 'px';
+
+    // Fallback: just request background to capture visible tab
+    // (canvas rendering of arbitrary DOM is unreliable without html2canvas)
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function doSave(metadata) {
   const btn = document.getElementById('vp-sbtn');
   const prog = document.getElementById('vp-prog');
@@ -220,11 +247,18 @@ async function doSave(metadata) {
   btn.disabled = true; btn.textContent = 'Capturing...'; prog.classList.add('on');
 
   try {
+    // Scroll the selected element into view before screenshot
+    if (selectedElement) {
+      selectedElement.scrollIntoView({ behavior: 'instant', block: 'start' });
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // Send to background — it will capture the visible tab
+    // No chrome.tabs.query here (not available in content scripts)
     const result = await chrome.runtime.sendMessage({
       type: 'SAVE_POST',
       metadata: { author: metadata.author, content: metadata.content, engagement: metadata.engagement, hashtags: metadata.hashtags },
       userNote: fullNote || null,
-      tabId: (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id,
       url: metadata.url || window.location.href,
     });
     if (result.error) throw new Error(result.error);

@@ -11,8 +11,18 @@ async function handleSave({ metadata, userNote, tabId, url }, sender) {
   const { apiKey } = await chrome.storage.sync.get('apiKey');
   if (!apiKey) throw new Error('No API key set. Open the extension popup to set it.');
 
-  // Use the sender tab if available (content script), otherwise use provided tabId
+  // Get tab from sender (content script) or provided tabId
   const actualTabId = sender?.tab?.id || tabId;
+
+  // Get URL from sender tab if not provided
+  if (!url) {
+    if (sender?.tab?.url) {
+      url = sender.tab.url;
+    } else if (actualTabId) {
+      const tab = await chrome.tabs.get(actualTabId);
+      url = tab.url;
+    }
+  }
 
   // Capture visible tab screenshot
   let screenshot_base64 = null;
@@ -20,12 +30,6 @@ async function handleSave({ metadata, userNote, tabId, url }, sender) {
     screenshot_base64 = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
   } catch (e) {
     console.log('Screenshot capture failed:', e);
-  }
-
-  // Get URL from the tab if not provided
-  if (!url && actualTabId) {
-    const tab = await chrome.tabs.get(actualTabId);
-    url = tab.url;
   }
 
   const resp = await fetch(`${API_BASE}/api/v1/save`, {
