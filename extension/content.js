@@ -1,143 +1,250 @@
-// ViralPulse Content Script — Native Share Button Injection
+// ViralPulse Content Script — Smart Extraction + Confirmation Card
+// v2.0 — Structured data extraction, auto-expand, image capture
 
-const VP_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`;
+if (window.__vpInjected) { /* already loaded */ } else {
+window.__vpInjected = true;
 
-// Inject styles once
-const style = document.createElement('style');
-style.textContent = `
+// ==========================================
+// STYLES
+// ==========================================
+
+const vpStyle = document.createElement('style');
+vpStyle.textContent = `
   .vp-save-btn {
     display: inline-flex; align-items: center; gap: 4px;
     background: none; border: none; cursor: pointer;
     color: #71767b; font-size: 13px; padding: 4px 8px;
     border-radius: 20px; transition: all 0.15s;
     font-family: -apple-system, system-ui, sans-serif;
-    white-space: nowrap; position: relative;
+    white-space: nowrap;
   }
   .vp-save-btn:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
-  .vp-save-btn.saved { color: #16a34a; }
-  .vp-save-btn.saving { color: #78716c; pointer-events: none; }
+  .vp-save-btn.saved { color: #16a34a !important; }
+  .vp-save-btn.saving { color: #78716c !important; pointer-events: none; }
 
   .vp-toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    z-index: 2147483647; background: #1c1917; color: #fff;
-    padding: 12px 20px; border-radius: 10px;
-    font: 14px -apple-system, system-ui, sans-serif;
+    z-index: 2147483647; padding: 12px 20px; border-radius: 10px;
+    font: 500 14px -apple-system, system-ui, sans-serif;
     box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    display: flex; align-items: center; gap: 10px;
-    animation: vpToastIn 0.2s ease;
+    animation: vpFadeUp 0.2s ease;
+    color: #fff;
   }
   .vp-toast.success { background: #16a34a; }
   .vp-toast.error { background: #dc2626; }
-  @keyframes vpToastIn { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+  @keyframes vpFadeUp { from { opacity:0; transform:translateX(-50%) translateY(10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
 
-  .vp-quick-note {
+  #vp-confirm {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     z-index: 2147483647; background: #fff; border-radius: 14px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
-    padding: 16px; width: 360px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04);
+    padding: 16px; width: 400px; max-width: calc(100vw - 40px);
     font-family: -apple-system, system-ui, sans-serif;
-    animation: vpToastIn 0.2s ease;
+    animation: vpFadeUp 0.2s ease;
   }
-  .vp-quick-note textarea {
-    width: 100%; border: 1px solid #e7e5e4; border-radius: 8px;
-    padding: 8px 10px; font-size: 13px; font-family: inherit;
-    resize: none; height: 40px; margin-bottom: 8px;
-  }
-  .vp-quick-note textarea:focus { outline: none; border-color: #2563eb; }
-  .vp-quick-note .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-  .vp-quick-note .tag {
+  .vp-tag {
     font-size: 11px; padding: 3px 9px; border-radius: 16px;
     border: 1px solid #e7e5e4; background: #fff; color: #57534e;
-    cursor: pointer; user-select: none;
+    cursor: pointer; user-select: none; display: inline-block;
   }
-  .vp-quick-note .tag:hover { border-color: #d6d3d1; }
-  .vp-quick-note .tag.on { background: #1c1917; color: #fff; border-color: #1c1917; }
-  .vp-quick-note .actions { display: flex; gap: 8px; }
-  .vp-quick-note .actions button {
-    flex: 1; padding: 8px; border: none; border-radius: 8px;
-    font-size: 13px; font-weight: 600; cursor: pointer;
-  }
-  .vp-quick-note .save { background: #1c1917; color: #fff; }
-  .vp-quick-note .save:hover { background: #292524; }
-  .vp-quick-note .skip { background: #f5f5f4; color: #57534e; }
-  .vp-quick-note .skip:hover { background: #e7e5e4; }
+  .vp-tag:hover { border-color: #d6d3d1; background: #fafaf9; }
+  .vp-tag.on { background: #1c1917; color: #fff; border-color: #1c1917; }
 `;
-document.head.appendChild(style);
+document.head.appendChild(vpStyle);
 
 // ==========================================
-// PLATFORM-SPECIFIC BUTTON INJECTION
+// ICON
 // ==========================================
+
+const VP_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+
+// ==========================================
+// HELPERS
+// ==========================================
+
+function extractHashtags(text) {
+  return (text.match(/#(\w+)/g) || []).map(h => h.slice(1));
+}
+
+function fmtNum(n) {
+  if (!n) return '0';
+  n = Number(n);
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function showToast(msg, type) {
+  document.querySelector('.vp-toast')?.remove();
+  const t = document.createElement('div');
+  t.className = `vp-toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
 
 const hostname = window.location.hostname.replace('www.', '');
 
-const PLATFORM_CONFIG = {
+function platformLabel() {
+  const map = { 'x.com':'X', 'twitter.com':'X', 'reddit.com':'Reddit', 'linkedin.com':'LinkedIn', 'youtube.com':'YouTube', 'tiktok.com':'TikTok', 'instagram.com':'Instagram' };
+  return map[hostname] || 'Web';
+}
+
+// ==========================================
+// PLATFORM EXTRACTORS
+// ==========================================
+
+const EXTRACTORS = {
   'x.com': {
     postSelector: 'article[data-testid="tweet"]',
     actionBar: '[role="group"]:last-of-type',
-    getAuthor: (el) => el.querySelector('[data-testid="User-Name"] a')?.textContent || '',
-    getContent: (el) => el.querySelector('[data-testid="tweetText"]')?.textContent || '',
-    getUrl: (el) => {
-      const link = el.querySelector('a[href*="/status/"]');
-      return link ? 'https://x.com' + new URL(link.href).pathname : window.location.href;
+    expand(post) {
+      const btn = post.querySelector('[data-testid="tweet-text-show-more-link"]');
+      if (btn) { btn.click(); return true; }
+      // Also try generic "Show more" spans
+      for (const el of post.querySelectorAll('span[role="link"], div[role="link"]')) {
+        if (/show more/i.test(el.textContent)) { el.click(); return true; }
+      }
+      return false;
+    },
+    extract(post) {
+      const author = post.querySelector('[data-testid="User-Name"] a')?.textContent?.trim() || '';
+      const content = post.querySelector('[data-testid="tweetText"]')?.textContent || '';
+      const images = [...post.querySelectorAll('[data-testid="tweetPhoto"] img')]
+        .map(img => img.src).filter(s => s && s.startsWith('http') && !s.includes('emoji'));
+      const video = post.querySelector('video');
+      const videoThumbnail = video?.poster || post.querySelector('[data-testid="videoPlayer"] img')?.src || null;
+      const videoUrl = video ? window.location.href : null;
+      const link = post.querySelector('a[href*="/status/"]');
+      const url = link ? 'https://x.com' + new URL(link.href).pathname : window.location.href;
+      // Engagement from aria-labels
+      const engagement = {};
+      post.querySelectorAll('[role="group"] button[aria-label]').forEach(btn => {
+        const label = btn.getAttribute('aria-label') || '';
+        const m = label.match(/([\d,]+)\s*(repl|like|repost|view|bookmark)/i);
+        if (m) {
+          const num = parseInt(m[1].replace(/,/g, ''));
+          const t = m[2].toLowerCase();
+          if (t.startsWith('repl')) engagement.comments = num;
+          else if (t.startsWith('like')) engagement.likes = num;
+          else if (t.startsWith('repost')) engagement.shares = num;
+          else if (t.startsWith('view')) engagement.views = num;
+        }
+      });
+      return { author, content, engagement, hashtags: extractHashtags(content), images, videoThumbnail, videoUrl, url };
     },
   },
-  'twitter.com': null, // same as x.com, set below
+
   'reddit.com': {
-    postSelector: 'shreddit-post, .Post, [data-testid="post-container"]',
-    actionBar: 'shreddit-post-overflow-menu, .Post .PostHeader, [data-testid="post-container"] > div:last-child',
-    getAuthor: (el) => el.querySelector('[data-testid="post_author_link"], .author')?.textContent || '',
-    getContent: (el) => {
-      const title = el.querySelector('[data-testid="post-title"], h1, h3')?.textContent || '';
-      const body = el.querySelector('[slot="text-body"], .usertext-body')?.textContent || '';
-      return title + '\n' + body;
+    postSelector: 'shreddit-post, .Post, [data-testid="post-container"], article',
+    actionBar: 'shreddit-post-overflow-menu, .flat-list.buttons, [slot="credit-bar"]',
+    expand(post) {
+      for (const btn of post.querySelectorAll('button, [role="button"]')) {
+        if (btn.offsetHeight > 0 && /\bmore\b/i.test(btn.textContent)) { btn.click(); return true; }
+      }
+      return false;
     },
-    getUrl: (el) => {
-      const link = el.querySelector('a[href*="/comments/"]');
-      return link ? link.href : window.location.href;
+    extract(post) {
+      const title = post.querySelector('[data-testid="post-title"], h1, h3, [slot="title"]')?.textContent?.trim() || '';
+      const body = post.querySelector('[slot="text-body"], .usertext-body, [data-testid="post-content"]')?.textContent?.trim() || '';
+      const author = post.querySelector('[data-testid="post_author_link"], .author, [slot="authorName"]')?.textContent?.trim() || '';
+      const images = [...post.querySelectorAll('img')].filter(img => {
+        const w = img.naturalWidth || img.width; return w > 100 && !/avatar|icon|emoji/i.test(img.src);
+      }).map(img => img.src);
+      const link = post.querySelector('a[href*="/comments/"]');
+      const url = link ? link.href : window.location.href;
+      const scoreEl = post.querySelector('[data-testid="post-score"], .score, [score]');
+      const likes = scoreEl ? parseInt((scoreEl.textContent || scoreEl.getAttribute('score') || '0').replace(/[^0-9-]/g, '')) || 0 : 0;
+      return { author, content: title + (body ? '\n' + body : ''), engagement: { likes }, hashtags: [], images, videoThumbnail: null, videoUrl: null, url };
     },
   },
+
   'linkedin.com': {
-    postSelector: '.feed-shared-update-v2, .occludable-update',
-    actionBar: '.social-details-social-counts, .feed-shared-social-actions',
-    getAuthor: (el) => el.querySelector('.feed-shared-actor__name, .update-components-actor__name')?.textContent?.trim() || '',
-    getContent: (el) => el.querySelector('.feed-shared-text, .update-components-text')?.textContent || '',
-    getUrl: (el) => {
-      const link = el.querySelector('a[href*="/feed/update/"]');
-      return link ? link.href : window.location.href;
+    postSelector: '.feed-shared-update-v2, .occludable-update, div[data-urn], .scaffold-finite-scroll__content > div > div',
+    actionBar: '.feed-shared-social-actions, .social-details-social-counts, .feed-shared-update-v2__control-menu',
+    expand(post) {
+      const btn = post.querySelector('.feed-shared-inline-show-more-text, button[aria-expanded="false"], span.lt-line-clamp__more');
+      if (btn) { btn.click(); return true; }
+      for (const el of post.querySelectorAll('button, span')) {
+        if (/see more|\.\.\.more/i.test(el.textContent?.trim()) && el.offsetHeight > 0) { el.click(); return true; }
+      }
+      return false;
+    },
+    extract(post) {
+      const author = post.querySelector('.feed-shared-actor__name, .update-components-actor__name, a[data-tracking-control-name*="actor"]')?.textContent?.trim() || '';
+      const content = post.querySelector('.feed-shared-text, .update-components-text, .break-words')?.textContent?.trim() || '';
+      const images = [...post.querySelectorAll('.feed-shared-image img, .update-components-image img, img[data-delayed-url]')]
+        .map(img => img.src || img.getAttribute('data-delayed-url')).filter(Boolean);
+      const video = post.querySelector('video');
+      return { author, content, engagement: {}, hashtags: extractHashtags(content), images, videoThumbnail: video?.poster || null, videoUrl: null, url: window.location.href };
     },
   },
+
   'youtube.com': {
-    postSelector: '#primary-inner, ytd-rich-item-renderer',
-    actionBar: '#top-level-buttons-computed, ytd-menu-renderer',
-    getAuthor: (el) => el.querySelector('#channel-name a, .ytd-channel-name a')?.textContent?.trim() || '',
-    getContent: (el) => {
-      const title = el.querySelector('h1.ytd-watch-metadata, #video-title')?.textContent || '';
-      return title;
+    postSelector: '#primary-inner, ytd-rich-item-renderer, ytd-video-renderer',
+    actionBar: '#top-level-buttons-computed, ytd-menu-renderer, #info',
+    expand(post) {
+      const btn = document.querySelector('#expand, tp-yt-paper-button#more, [aria-label="Show more"]');
+      if (btn) { btn.click(); return true; }
+      return false;
     },
-    getUrl: (el) => window.location.href,
+    extract() {
+      const title = document.querySelector('h1.ytd-watch-metadata, #video-title')?.textContent?.trim() || '';
+      const channel = document.querySelector('#channel-name a')?.textContent?.trim() || '';
+      const desc = document.querySelector('#description-inner, .ytd-text-inline-expander')?.textContent?.slice(0, 2000)?.trim() || '';
+      const ogImage = document.querySelector('meta[property="og:image"]')?.content || '';
+      const viewsText = document.querySelector('#info-strings yt-formatted-string, .view-count')?.textContent || '';
+      const views = parseInt(viewsText.replace(/[^0-9]/g, '') || '0');
+      return { author: channel, content: title + '\n' + desc, engagement: { views }, hashtags: extractHashtags(desc), images: [], videoThumbnail: ogImage, videoUrl: window.location.href, url: window.location.href };
+    },
   },
+
   'tiktok.com': {
     postSelector: '[data-e2e="recommend-list-item-container"], .video-feed-item',
-    actionBar: '[data-e2e="video-action-bar"], .video-action-container',
-    getAuthor: (el) => el.querySelector('[data-e2e="browse-username"]')?.textContent || '',
-    getContent: (el) => el.querySelector('[data-e2e="browse-video-desc"]')?.textContent || '',
-    getUrl: (el) => window.location.href,
+    actionBar: '[data-e2e="video-action-bar"]',
+    expand() { return false; },
+    extract() {
+      const author = document.querySelector('[data-e2e="browse-username"]')?.textContent?.trim() || '';
+      const content = document.querySelector('[data-e2e="browse-video-desc"]')?.textContent || '';
+      const video = document.querySelector('video');
+      return { author, content, engagement: {}, hashtags: extractHashtags(content), images: [], videoThumbnail: video?.poster || null, videoUrl: window.location.href, url: window.location.href };
+    },
   },
+
   'instagram.com': {
     postSelector: 'article',
-    actionBar: 'section:has(button[type="button"])',
-    getAuthor: (el) => el.querySelector('header a')?.textContent || '',
-    getContent: (el) => el.querySelector('h1, span[dir="auto"]')?.textContent || '',
-    getUrl: (el) => window.location.href,
+    actionBar: 'section',
+    expand(post) {
+      for (const btn of post.querySelectorAll('button')) {
+        if (/more/i.test(btn.textContent) && btn.offsetHeight > 0) { btn.click(); return true; }
+      }
+      return false;
+    },
+    extract(post) {
+      const author = post.querySelector('header a')?.textContent?.trim() || '';
+      const content = post.querySelector('h1, span[dir="auto"]')?.textContent || '';
+      const images = [...post.querySelectorAll('img[srcset], img[sizes]')]
+        .filter(img => (img.naturalWidth || img.width) > 100).map(img => img.src);
+      const video = post.querySelector('video');
+      return { author, content, engagement: {}, hashtags: extractHashtags(content), images, videoThumbnail: video?.poster || null, videoUrl: null, url: window.location.href };
+    },
   },
 };
 
-PLATFORM_CONFIG['twitter.com'] = PLATFORM_CONFIG['x.com'];
+EXTRACTORS['twitter.com'] = EXTRACTORS['x.com'];
 
-const config = PLATFORM_CONFIG[hostname];
+const ext = EXTRACTORS[hostname] || null;
 
 // ==========================================
-// INJECT BUTTONS
+// BUTTON INJECTION
 // ==========================================
 
 function createVPButton(postEl) {
@@ -146,167 +253,225 @@ function createVPButton(postEl) {
   btn.setAttribute('data-vp', 'true');
   btn.innerHTML = `${VP_ICON}<span class="vp-label">Save</span>`;
   btn.title = 'Save to ViralPulse';
-
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleSaveClick(btn, postEl);
-  });
-
+  btn._vpPostEl = postEl;
+  btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); handleSaveClick(btn, postEl); });
   return btn;
 }
 
 function injectButtons() {
-  if (!config) return;
-
-  const posts = document.querySelectorAll(config.postSelector);
-  posts.forEach(post => {
-    // Skip if already injected
+  if (!ext) return;
+  document.querySelectorAll(ext.postSelector).forEach(post => {
     if (post.querySelector('[data-vp]')) return;
-
-    // Find the action bar
-    const actionBar = post.querySelector(config.actionBar);
-    if (actionBar) {
-      const btn = createVPButton(post);
-      actionBar.appendChild(btn);
-    }
+    const bar = post.querySelector(ext.actionBar);
+    if (bar) bar.appendChild(createVPButton(post));
   });
 }
 
 // ==========================================
-// SAVE HANDLER
+// FLOATING FALLBACK BUTTON
 // ==========================================
 
-let activeQuickNote = null;
-
-function showToast(msg, type = '') {
-  const existing = document.querySelector('.vp-toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.className = `vp-toast ${type}`;
-  toast.textContent = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2500);
+function injectFloatingButton() {
+  if (document.getElementById('vp-fab')) return;
+  const fab = document.createElement('button');
+  fab.id = 'vp-fab';
+  fab.className = 'vp-save-btn';
+  fab.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483640;background:#fff;border:1px solid #e7e5e4;box-shadow:0 2px 12px rgba(0,0,0,0.1);padding:10px 16px;border-radius:12px;font-size:14px;';
+  fab.innerHTML = `${VP_ICON} <span class="vp-label">Save to VP</span>`;
+  fab._vpPostEl = document.body;
+  fab.addEventListener('click', (e) => { e.preventDefault(); handleSaveClick(fab, document.body); });
+  document.body.appendChild(fab);
 }
+
+// ==========================================
+// SAVE FLOW
+// ==========================================
 
 async function handleSaveClick(btn, postEl) {
-  // Check API key
   const { apiKey } = await chrome.storage.sync.get('apiKey');
-  if (!apiKey) {
-    showToast('Set your API key in the ViralPulse extension', 'error');
-    return;
+  if (!apiKey) { showToast('Set your API key in the ViralPulse extension popup', 'error'); return; }
+
+  const label = btn.querySelector('.vp-label');
+  const currentExt = ext;
+
+  // Step 1: Auto-expand
+  label.textContent = 'Expanding...';
+  let expanded = false;
+  if (currentExt) {
+    try { expanded = currentExt.expand(postEl); } catch(e) { console.log('VP expand failed:', e); }
+  }
+  if (expanded) await new Promise(r => setTimeout(r, 600));
+
+  // Step 2: Extract structured data
+  label.textContent = 'Extracting...';
+  let data;
+  if (currentExt) {
+    try { data = currentExt.extract(postEl); } catch(e) { console.log('VP extract failed:', e); data = null; }
+  }
+  if (!data) {
+    // Generic fallback
+    data = {
+      author: document.querySelector('meta[name="author"]')?.content || '',
+      content: (document.querySelector('meta[property="og:description"]')?.content || '') + '\n' + (document.querySelector('article, main')?.innerText?.slice(0, 2000) || document.title),
+      engagement: {}, hashtags: [], images: [], videoThumbnail: null, videoUrl: null, url: window.location.href,
+    };
   }
 
-  // Extract metadata
-  const metadata = {
-    author: config.getAuthor(postEl),
-    content: config.getContent(postEl),
-    engagement: {},
-    hashtags: (config.getContent(postEl).match(/#(\w+)/g) || []).map(h => h.slice(1)),
-  };
-  const url = config.getUrl(postEl);
+  // Step 3: Fetch images as base64
+  label.textContent = 'Capturing media...';
+  const images_base64 = [];
+  for (const imgUrl of (data.images || []).slice(0, 5)) {
+    try {
+      const resp = await fetch(imgUrl);
+      const blob = await resp.blob();
+      if (blob.size > 100) { // skip tiny/broken images
+        images_base64.push(await blobToBase64(blob));
+      }
+    } catch(e) { /* skip failed images */ }
+  }
 
-  // Show quick note panel
-  showQuickNote(btn, postEl, metadata, url, apiKey);
+  let video_thumbnail_base64 = null;
+  if (data.videoThumbnail) {
+    try {
+      const resp = await fetch(data.videoThumbnail);
+      const blob = await resp.blob();
+      if (blob.size > 100) video_thumbnail_base64 = await blobToBase64(blob);
+    } catch(e) { /* skip */ }
+  }
+
+  data.images_base64 = images_base64;
+  data.video_thumbnail_base64 = video_thumbnail_base64;
+
+  label.textContent = 'Save';
+
+  // Step 4: Show confirmation card
+  showConfirmCard(data, btn);
 }
 
-function showQuickNote(btn, postEl, metadata, url, apiKey) {
-  // Remove any existing note panel
-  if (activeQuickNote) { activeQuickNote.remove(); activeQuickNote = null; }
+// ==========================================
+// CONFIRMATION CARD
+// ==========================================
 
-  const panel = document.createElement('div');
-  panel.className = 'vp-quick-note';
-  panel.innerHTML = `
-    <textarea placeholder="Why save this? (optional)" autofocus></textarea>
-    <div class="tags">
-      <span class="tag" data-t="hook">Hook</span>
-      <span class="tag" data-t="format">Format</span>
-      <span class="tag" data-t="competitor">Competitor</span>
-      <span class="tag" data-t="tone">Tone</span>
-      <span class="tag" data-t="cta">CTA</span>
-      <span class="tag" data-t="visual">Visual</span>
+function showConfirmCard(data, btn) {
+  document.getElementById('vp-confirm')?.remove();
+
+  const imgThumb = data.images?.[0] || data.videoThumbnail || '';
+  const thumbHtml = imgThumb ? `<img src="${imgThumb}" style="width:52px;height:52px;border-radius:6px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : '';
+
+  const engParts = [];
+  if (data.engagement?.views) engParts.push('&#x25B6; ' + fmtNum(data.engagement.views));
+  if (data.engagement?.likes) engParts.push('&#x2764; ' + fmtNum(data.engagement.likes));
+  if (data.engagement?.comments) engParts.push('&#x1F4AC; ' + fmtNum(data.engagement.comments));
+  if (data.engagement?.shares) engParts.push('&#x21A9; ' + fmtNum(data.engagement.shares));
+
+  const preview = (data.content || '').slice(0, 140) + ((data.content || '').length > 140 ? '...' : '');
+  const mediaCount = (data.images_base64?.length || 0) + (data.video_thumbnail_base64 ? 1 : 0);
+  const wordCount = (data.content || '').split(/\s+/).filter(Boolean).length;
+
+  const card = document.createElement('div');
+  card.id = 'vp-confirm';
+  card.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;">
+      ${thumbHtml}
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:#f5f5f4;color:#57534e;">${platformLabel()}</span>
+          <span style="font-size:12px;color:#57534e;font-weight:500;">${data.author || 'Unknown'}</span>
+        </div>
+        <div style="font-size:11px;color:#a8a29e;margin-bottom:4px;">${wordCount} words${mediaCount > 0 ? ' · ' + mediaCount + ' media' : ''}${engParts.length ? ' · ' + engParts.join(' ') : ''}</div>
+        <div style="font-size:13px;color:#44403c;line-height:1.4;max-height:40px;overflow:hidden;">${preview}</div>
+      </div>
     </div>
-    <div class="actions">
-      <button class="skip">Save without note</button>
-      <button class="save">Save with note</button>
+    <div id="vp-note-area" style="display:none;margin-bottom:10px;">
+      <textarea id="vp-note-input" style="width:100%;border:1px solid #e7e5e4;border-radius:8px;padding:8px;font-size:13px;font-family:inherit;resize:none;height:36px;" placeholder="Why is this worth saving?"></textarea>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">
+        <span class="vp-tag" data-t="hook">Hook</span><span class="vp-tag" data-t="format">Format</span>
+        <span class="vp-tag" data-t="competitor">Competitor</span><span class="vp-tag" data-t="tone">Tone</span>
+        <span class="vp-tag" data-t="cta">CTA</span><span class="vp-tag" data-t="visual">Visual</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button id="vp-btn-save" style="flex:1;padding:9px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:#1c1917;color:#fff;">Looks good</button>
+      <button id="vp-btn-note" style="padding:9px 12px;border:1px solid #e7e5e4;border-radius:8px;font-size:12px;cursor:pointer;background:#fff;color:#57534e;">Add note</button>
+      <button id="vp-btn-retry" style="padding:9px 12px;border:1px solid #e7e5e4;border-radius:8px;font-size:12px;cursor:pointer;background:#fff;color:#57534e;">Retry</button>
     </div>
   `;
-  document.body.appendChild(panel);
-  activeQuickNote = panel;
+  document.body.appendChild(card);
 
-  // Focus textarea
-  panel.querySelector('textarea').focus();
+  // Tags
+  card.querySelectorAll('.vp-tag').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
 
-  // Tag toggles
-  panel.querySelectorAll('.tag').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+  // Add note toggle
+  card.querySelector('#vp-btn-note').addEventListener('click', () => {
+    const area = card.querySelector('#vp-note-area');
+    area.style.display = area.style.display === 'none' ? 'block' : 'none';
+    if (area.style.display === 'block') card.querySelector('#vp-note-input').focus();
+  });
 
-  // Close on click outside
-  const closeHandler = (e) => {
-    if (!panel.contains(e.target) && e.target !== btn) {
-      panel.remove();
-      activeQuickNote = null;
-      document.removeEventListener('click', closeHandler);
+  // Retry
+  card.querySelector('#vp-btn-retry').addEventListener('click', () => {
+    card.remove();
+    if (btn._vpPostEl) handleSaveClick(btn, btn._vpPostEl);
+  });
+
+  // Save
+  card.querySelector('#vp-btn-save').addEventListener('click', () => {
+    const note = card.querySelector('#vp-note-input')?.value?.trim() || '';
+    const tags = [...card.querySelectorAll('.vp-tag.on')].map(t => t.dataset.t);
+    const fullNote = [note, ...tags.map(t => '#' + t)].filter(Boolean).join(' ');
+    card.remove();
+    doSave(btn, data, fullNote);
+  });
+
+  // Enter to save
+  card.querySelector('#vp-note-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); card.querySelector('#vp-btn-save').click(); }
+  });
+
+  // ESC / click outside to dismiss
+  const dismiss = (e) => {
+    if (e.key === 'Escape' || (e.type === 'click' && !card.contains(e.target) && e.target !== btn)) {
+      card.remove();
+      document.removeEventListener('keydown', dismiss);
+      setTimeout(() => document.removeEventListener('click', dismiss), 0);
     }
   };
-  setTimeout(() => document.addEventListener('click', closeHandler), 100);
-
-  // Save without note
-  panel.querySelector('.skip').addEventListener('click', () => {
-    panel.remove();
-    activeQuickNote = null;
-    document.removeEventListener('click', closeHandler);
-    doSave(btn, metadata, url, apiKey, '');
-  });
-
-  // Save with note
-  panel.querySelector('.save').addEventListener('click', () => {
-    const note = panel.querySelector('textarea').value.trim();
-    const tags = [...panel.querySelectorAll('.tag.on')].map(t => t.dataset.t);
-    const fullNote = [note, ...tags.map(t => `#${t}`)].filter(Boolean).join(' ');
-    panel.remove();
-    activeQuickNote = null;
-    document.removeEventListener('click', closeHandler);
-    doSave(btn, metadata, url, apiKey, fullNote);
-  });
-
-  // Enter key saves
-  panel.querySelector('textarea').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      panel.querySelector('.save').click();
-    }
-  });
+  setTimeout(() => { document.addEventListener('keydown', dismiss); document.addEventListener('click', dismiss); }, 200);
 }
 
-async function doSave(btn, metadata, url, apiKey, note) {
-  // Update button state
+// ==========================================
+// SAVE TO API
+// ==========================================
+
+async function doSave(btn, data, note) {
   const label = btn.querySelector('.vp-label');
-  btn.classList.add('saving');
   label.textContent = 'Saving...';
+  btn.classList.add('saving');
 
   try {
     const result = await chrome.runtime.sendMessage({
       type: 'SAVE_POST',
-      metadata,
+      metadata: {
+        author: data.author,
+        content: data.content,
+        engagement: data.engagement,
+        hashtags: data.hashtags,
+        images_base64: data.images_base64 || [],
+        video_thumbnail_base64: data.video_thumbnail_base64 || null,
+        video_url: data.videoUrl || null,
+      },
       userNote: note || null,
-      url,
+      url: data.url || window.location.href,
     });
 
-    if (result.error) throw new Error(result.error);
+    if (result?.error) throw new Error(result.error);
 
-    // Success
     btn.classList.remove('saving');
     btn.classList.add('saved');
     label.textContent = 'Saved!';
     showToast('Saved to your library', 'success');
-
-    // Reset after 3s
-    setTimeout(() => {
-      label.textContent = 'Saved';
-      // Keep green to show it's been saved
-    }, 3000);
-
-  } catch (e) {
+    setTimeout(() => { label.textContent = 'Saved'; }, 3000);
+  } catch(e) {
     btn.classList.remove('saving');
     label.textContent = 'Save';
     showToast('Save failed: ' + e.message, 'error');
@@ -314,87 +479,34 @@ async function doSave(btn, metadata, url, apiKey, note) {
 }
 
 // ==========================================
-// GENERIC FALLBACK (non-supported platforms)
-// ==========================================
-
-function injectFloatingButton() {
-  // Skip if floating button already exists
-  if (document.getElementById('vp-fab')) return;
-
-  const fab = document.createElement('button');
-  fab.id = 'vp-fab';
-  fab.className = 'vp-save-btn';
-  fab.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483640;background:#fff;border:1px solid #e7e5e4;box-shadow:0 2px 12px rgba(0,0,0,0.1);padding:10px 16px;border-radius:12px;font-size:14px;';
-  fab.innerHTML = `${VP_ICON} <span class="vp-label">Save to VP</span>`;
-  fab.title = 'Save this page to ViralPulse';
-  document.body.appendChild(fab);
-
-  fab.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const { apiKey } = await chrome.storage.sync.get('apiKey');
-    if (!apiKey) { showToast('Set your API key in the ViralPulse extension', 'error'); return; }
-
-    const metadata = {
-      author: document.querySelector('meta[name="author"]')?.content || '',
-      content: (document.querySelector('meta[property="og:description"]')?.content || '') + '\n' + (document.querySelector('article, main')?.innerText?.slice(0, 2000) || document.title),
-      engagement: {},
-      hashtags: [],
-    };
-
-    showQuickNote(fab, document.body, metadata, window.location.href, apiKey);
-  });
-}
-
-// ==========================================
-// OBSERVER — watch for new posts loading
+// OBSERVER + INIT
 // ==========================================
 
 function startObserver() {
-  // Initial injection attempt
   injectButtons();
-
-  // If no buttons were injected after a delay, show floating button as fallback
   setTimeout(() => {
-    const injected = document.querySelectorAll('[data-vp]');
-    if (injected.length === 0) {
-      injectFloatingButton();
-    }
+    if (!document.querySelector('[data-vp]')) injectFloatingButton();
   }, 3000);
 
-  const observer = new MutationObserver(() => {
-    injectButtons();
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(() => injectButtons()).observe(document.body, { childList: true, subtree: true });
 }
 
-// Guard against double injection
-if (!window.__vpInjected) {
-  window.__vpInjected = true;
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startObserver);
-  } else {
-    startObserver();
-  }
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startObserver);
+} else {
+  startObserver();
 }
 
 // ==========================================
-// MESSAGE HANDLERS (for popup/background)
+// MESSAGE HANDLERS
 // ==========================================
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'ACTIVATE_SELECTOR') {
-    // Legacy support — just inject buttons if not already done
-    injectButtons();
-    sendResponse({ ok: true });
-  } else if (msg.type === 'EXTRACT_METADATA') {
-    const metadata = {
-      author: document.querySelector('meta[name="author"]')?.content || '',
-      content: document.querySelector('meta[property="og:description"]')?.content || document.title,
-      engagement: {},
-      hashtags: [],
-    };
-    sendResponse(metadata);
+  if (msg.type === 'ACTIVATE_SELECTOR') { injectButtons(); sendResponse({ ok: true }); }
+  else if (msg.type === 'EXTRACT_METADATA') {
+    sendResponse({ author: '', content: document.title, engagement: {}, hashtags: [] });
   }
   return true;
 });
+
+} // end __vpInjected guard
