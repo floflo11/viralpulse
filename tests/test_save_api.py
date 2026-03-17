@@ -17,3 +17,9 @@ def test_save_requires_auth():
 def test_delete_requires_auth():
     resp = client.delete("/api/v1/saved/fake-id")
     assert resp.status_code == 401
+
+
+def test_save_returns_platform():
+    from viralpulse.platform_detect import detect_platform
+    assert detect_platform("https://x.com/test/status/123") == "twitter"
+    assert detect_platform("https://reddit.com/r/test") == "reddit"

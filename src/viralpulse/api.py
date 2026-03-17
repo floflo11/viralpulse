@@ -984,6 +984,39 @@ def save_post(body: dict, user: dict = Depends(_get_user)):
                     pass
         threading.Thread(target=_bg_enrich, daemon=True).start()
 
+    # Handle images from smart extraction
+    images_b64 = metadata.get("images_base64", [])
+    video_thumb_b64 = metadata.get("video_thumbnail_base64")
+    video_url_val = metadata.get("video_url")
+
+    image_urls = []
+    if images_b64:
+        from viralpulse.s3 import upload_image
+        for idx, img_b64 in enumerate(images_b64[:5]):  # Max 5 images
+            try:
+                img_url = upload_image(str(user["id"]), post_id, idx, img_b64)
+                image_urls.append(img_url)
+            except Exception as e:
+                logging.getLogger("viralpulse.api").error(f"Image upload {idx} failed: {e}")
+
+    video_thumb_url = None
+    if video_thumb_b64:
+        try:
+            from viralpulse.s3 import upload_video_thumbnail
+            video_thumb_url = upload_video_thumbnail(str(user["id"]), post_id, video_thumb_b64)
+        except Exception as e:
+            logging.getLogger("viralpulse.api").error(f"Video thumb upload failed: {e}")
+
+    # Update row with media URLs
+    if image_urls or video_thumb_url or video_url_val:
+        conn2 = get_conn()
+        conn2.execute(
+            """UPDATE saved_posts SET images = %s, video_thumbnail = %s, video_url = %s WHERE id = %s""",
+            (json.dumps(image_urls), video_thumb_url, video_url_val, post_id),
+        )
+        conn2.commit()
+        conn2.close()
+
     return {"id": post_id, "status": status, "platform": platform}
 
 
