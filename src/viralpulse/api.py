@@ -1,16 +1,20 @@
 """FastAPI application — serves viral post data to AI agents and dashboards."""
 
 import json
+import logging
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from viralpulse.auth import generate_api_key, get_user_by_key
 from viralpulse.config import settings
 from viralpulse.db import get_conn, init_db
+from viralpulse.platform_detect import detect_platform
 from viralpulse.models import (
     PostResponse, PostsListResponse, Engagement, Scores,
     Topic, PlatformStatus,
@@ -39,6 +43,16 @@ SORT_COLUMNS = {
     "relevance": "s.relevance",
     "recent": "p.published_at",
 }
+
+
+def _get_user(x_api_key: str = Header(None)):
+    """Extract user from X-API-Key header."""
+    if not x_api_key:
+        raise HTTPException(401, "Missing X-API-Key header")
+    user = get_user_by_key(x_api_key)
+    if not user:
+        raise HTTPException(403, "Invalid API key")
+    return user
 
 
 @app.get("/", include_in_schema=False, response_class=HTMLResponse)
@@ -773,6 +787,149 @@ def view_profile(
   </div>
 </body>
 </html>"""
+
+
+@app.post("/api/v1/users")
+def create_user(body: dict):
+    if not settings.database_url:
+        raise HTTPException(500, "No database configured")
+    name = body.get("name", "")
+    email = body.get("email")
+    api_key = generate_api_key()
+    conn = get_conn()
+    row = conn.execute(
+        "INSERT INTO users (api_key, name, email) VALUES (%s, %s, %s) RETURNING *",
+        (api_key, name, email),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row)
+
+
+@app.post("/api/v1/save")
+def save_post(body: dict, user: dict = Depends(_get_user)):
+    if not settings.database_url:
+        raise HTTPException(500, "No database configured")
+
+    url = body.get("url", "").strip()
+    if not url:
+        raise HTTPException(400, "url is required")
+
+    platform = detect_platform(url)
+    screenshot_b64 = body.get("screenshot_base64")
+    metadata = body.get("metadata", {})
+    user_note = body.get("user_note")
+    source = "extension" if screenshot_b64 else "api"
+    status = "enriched" if screenshot_b64 else "pending"
+
+    conn = get_conn()
+    row = conn.execute(
+        """INSERT INTO saved_posts (user_id, url, platform, author, content, engagement, hashtags,
+           published_at, user_note, source, status)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+           ON CONFLICT (user_id, url) DO UPDATE SET
+               user_note = COALESCE(EXCLUDED.user_note, saved_posts.user_note),
+               status = EXCLUDED.status
+           RETURNING *""",
+        (str(user["id"]), url, platform,
+         metadata.get("author", ""), metadata.get("content", ""),
+         json.dumps(metadata.get("engagement")) if metadata.get("engagement") else None,
+         json.dumps(metadata.get("hashtags", [])),
+         metadata.get("published_at"), user_note, source, status),
+    ).fetchone()
+    conn.commit()
+    post_id = str(row["id"])
+    conn.close()
+
+    # Handle screenshot from extension
+    if screenshot_b64:
+        try:
+            from viralpulse.s3 import upload_screenshot_base64
+            screenshot_url = upload_screenshot_base64(str(user["id"]), post_id, screenshot_b64)
+            conn = get_conn()
+            conn.execute("UPDATE saved_posts SET screenshot_url = %s WHERE id = %s", (screenshot_url, post_id))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logging.getLogger("viralpulse.api").error(f"S3 upload failed: {e}")
+    else:
+        # Queue background VM screenshot
+        def _bg_enrich():
+            try:
+                from viralpulse.screenshot import capture_screenshot_and_metadata
+                from viralpulse.s3 import upload_screenshot
+                ss_bytes, meta = capture_screenshot_and_metadata(url, platform)
+                conn = get_conn()
+                if ss_bytes:
+                    s3_url = upload_screenshot(str(user["id"]), post_id, ss_bytes)
+                    conn.execute(
+                        """UPDATE saved_posts SET screenshot_url = %s, author = %s, content = %s,
+                           hashtags = %s, status = 'enriched' WHERE id = %s""",
+                        (s3_url, meta.get("author", ""), meta.get("content", ""),
+                         json.dumps(meta.get("hashtags", [])), post_id),
+                    )
+                else:
+                    conn.execute("UPDATE saved_posts SET status = 'failed' WHERE id = %s", (post_id,))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                logging.getLogger("viralpulse.api").error(f"BG enrich failed: {e}")
+                try:
+                    c = get_conn()
+                    c.execute("UPDATE saved_posts SET status = 'failed' WHERE id = %s", (post_id,))
+                    c.commit()
+                    c.close()
+                except Exception:
+                    pass
+        threading.Thread(target=_bg_enrich, daemon=True).start()
+
+    return {"id": post_id, "status": status, "platform": platform}
+
+
+@app.get("/api/v1/saved")
+def get_saved(
+    query: str = Query(None),
+    platform: str = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    user: dict = Depends(_get_user),
+):
+    conn = get_conn()
+    sql = "SELECT * FROM saved_posts WHERE user_id = %s"
+    params = [str(user["id"])]
+
+    if platform:
+        sql += " AND platform = %s"
+        params.append(platform)
+    if query:
+        sql += " AND (content ILIKE %s OR author ILIKE %s OR user_note ILIKE %s)"
+        q = f"%{query}%"
+        params.extend([q, q, q])
+
+    sql += " ORDER BY created_at DESC LIMIT %s"
+    params.append(limit)
+
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return {"count": len(rows), "posts": [dict(r) for r in rows]}
+
+
+@app.delete("/api/v1/saved/{post_id}")
+def delete_saved(post_id: str, user: dict = Depends(_get_user)):
+    conn = get_conn()
+    row = conn.execute(
+        "DELETE FROM saved_posts WHERE id = %s AND user_id = %s RETURNING id",
+        (post_id, str(user["id"])),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Post not found")
+    try:
+        from viralpulse.s3 import delete_screenshot
+        delete_screenshot(str(user["id"]), post_id)
+    except Exception:
+        pass
+    return {"deleted": True}
 
 
 @app.get("/api/v1/posts/{post_id}")
