@@ -103,6 +103,87 @@ def cmd_status(args):
     print(f"DB:      {'connected' if settings.database_url else 'NOT SET'}")
 
 
+def cmd_profile_add(args):
+    init_db()
+    conn = get_conn()
+    handle = args.handle.lstrip("@")
+    row = conn.execute(
+        """INSERT INTO profiles (platform, handle) VALUES (%s, %s)
+           ON CONFLICT (platform, handle) DO UPDATE SET updated_at = now()
+           RETURNING *""",
+        (args.platform, handle),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    print(f"Tracking @{handle} on {args.platform}")
+
+
+def cmd_profile_list(args):
+    init_db()
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM profiles ORDER BY platform, handle").fetchall()
+    conn.close()
+    if not rows:
+        print("No profiles tracked. Add one: viralpulse profile add twitter OpenAI")
+        return
+    print(f"{'Platform':<12} {'Handle':<20} {'Enabled':<8}")
+    print("-" * 42)
+    for r in rows:
+        print(f"{r['platform']:<12} @{r['handle']:<19} {'yes' if r['enabled'] else 'no':<8}")
+
+
+def cmd_profile_crawl(args):
+    init_db()
+    handle = args.handle.lstrip("@")
+    if not settings.scrapecreators_api_key:
+        print("Error: SCRAPECREATORS_API_KEY not set")
+        sys.exit(1)
+
+    print(f"Crawling @{handle} on {args.platform}...")
+    start = time.time()
+    posts = []
+
+    if args.platform == "twitter":
+        from viralpulse.platforms.x_profile import XProfileCrawler
+        crawler = XProfileCrawler(settings.scrapecreators_api_key)
+        posts = crawler.fetch_user_posts(handle)
+    elif args.platform == "instagram":
+        from viralpulse.platforms.instagram_profile import InstagramProfileCrawler
+        crawler = InstagramProfileCrawler(settings.scrapecreators_api_key)
+        posts = crawler.fetch_user_posts(handle)
+
+    if posts:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        conn = get_conn()
+        new = 0
+        for post in posts:
+            if not post.url:
+                continue
+            existing = conn.execute("SELECT id FROM posts WHERE url = %s", (post.url,)).fetchone()
+            if not existing:
+                conn.execute(
+                    """INSERT INTO posts (topic_id, platform, platform_id, url, author, author_url,
+                       title, content, media_url, published_at, fetched_at, raw_data)
+                       VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (post.platform, post.platform_id, post.url, post.author, post.author_url,
+                     post.title, post.content, post.media_url, post.published_at, now,
+                     json.dumps(post.raw_data, default=str)),
+                )
+                conn.execute(
+                    """INSERT INTO engagement (post_id, snapshot_at, likes, comments, shares, views)
+                       SELECT id, %s, %s, %s, %s, %s FROM posts WHERE url = %s""",
+                    (now, post.likes, post.comments, post.shares, post.views, post.url),
+                )
+                new += 1
+        conn.commit()
+        conn.close()
+        duration = time.time() - start
+        print(f"Done in {duration:.1f}s — {new} new posts, {len(posts) - new} existing")
+    else:
+        print("No posts found")
+
+
 def cmd_serve(args):
     import uvicorn
     uvicorn.run("viralpulse.api:app", host=args.host, port=args.port, reload=args.reload)
@@ -128,6 +209,23 @@ def main():
     rm_p.add_argument("name", help="Topic name")
     rm_p.set_defaults(func=cmd_topic_remove)
 
+    # profile subcommands
+    profile_parser = sub.add_parser("profile", help="Track profiles")
+    profile_sub = profile_parser.add_subparsers(dest="profile_command")
+
+    add_prof = profile_sub.add_parser("add", help="Track a profile")
+    add_prof.add_argument("platform", choices=["twitter", "instagram"])
+    add_prof.add_argument("handle", help="Username/handle")
+    add_prof.set_defaults(func=cmd_profile_add)
+
+    list_prof = profile_sub.add_parser("list", help="List tracked profiles")
+    list_prof.set_defaults(func=cmd_profile_list)
+
+    crawl_prof = profile_sub.add_parser("crawl", help="Crawl a profile")
+    crawl_prof.add_argument("platform", choices=["twitter", "instagram"])
+    crawl_prof.add_argument("handle")
+    crawl_prof.set_defaults(func=cmd_profile_crawl)
+
     # crawl
     crawl_p = sub.add_parser("crawl", help="Run crawler")
     crawl_p.add_argument("--topic", help="Crawl specific topic (default: all)")
@@ -151,6 +249,10 @@ def main():
 
     if args.command == "topic" and not getattr(args, "topic_command", None):
         topic_parser.print_help()
+        sys.exit(1)
+
+    if args.command == "profile" and not getattr(args, "profile_command", None):
+        profile_parser.print_help()
         sys.exit(1)
 
     args.func(args)

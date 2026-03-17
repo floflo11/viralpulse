@@ -555,6 +555,226 @@ def view_posts(
 </html>"""
 
 
+@app.get("/api/v1/profiles")
+def list_profiles():
+    if not settings.database_url:
+        return {"profiles": []}
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT pr.*, COUNT(p.id) as post_count
+           FROM profiles pr
+           LEFT JOIN posts p ON p.author ILIKE '%%' || pr.handle || '%%' AND p.platform = pr.platform
+           GROUP BY pr.id ORDER BY pr.handle"""
+    ).fetchall()
+    conn.close()
+    return {"profiles": [dict(r) for r in rows]}
+
+
+@app.post("/api/v1/profiles")
+def add_profile(platform: str = Query(...), handle: str = Query(...)):
+    if not settings.database_url:
+        raise HTTPException(500, "No database configured")
+    conn = get_conn()
+    row = conn.execute(
+        """INSERT INTO profiles (platform, handle) VALUES (%s, %s)
+           ON CONFLICT (platform, handle) DO UPDATE SET updated_at = now()
+           RETURNING *""",
+        (platform, handle.lstrip("@")),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row)
+
+
+@app.get("/api/v1/profiles/{handle}/posts")
+def get_profile_posts(handle: str, platform: str = Query(None), limit: int = Query(20, ge=1, le=100)):
+    if not settings.database_url:
+        return {"handle": handle, "posts": []}
+    conn = get_conn()
+    query = "SELECT p.*, e.likes, e.comments, e.shares, e.views FROM posts p LEFT JOIN LATERAL (SELECT * FROM engagement WHERE post_id = p.id ORDER BY snapshot_at DESC LIMIT 1) e ON true WHERE p.author ILIKE %s"
+    params = [f"%{handle}%"]
+    if platform:
+        query += " AND p.platform = %s"
+        params.append(platform)
+    query += " ORDER BY e.likes DESC NULLS LAST LIMIT %s"
+    params.append(limit)
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return {"handle": handle, "count": len(rows), "posts": [dict(r) for r in rows]}
+
+
+@app.get("/api/v1/crawl-profile", include_in_schema=False)
+def crawl_profile(platform: str = Query(...), handle: str = Query(...)):
+    """Crawl a profile on the fly and redirect to view."""
+    import logging
+    logger = logging.getLogger("viralpulse.api")
+
+    if not settings.database_url or not settings.scrapecreators_api_key:
+        return RedirectResponse(f"/api/v1/profiles/{handle}/posts?platform={platform}")
+
+    handle = handle.lstrip("@")
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO profiles (platform, handle) VALUES (%s, %s)
+           ON CONFLICT (platform, handle) DO UPDATE SET updated_at = now()""",
+        (platform, handle),
+    )
+    conn.commit()
+    conn.close()
+
+    try:
+        posts = []
+        if platform == "twitter":
+            from viralpulse.platforms.x_profile import XProfileCrawler
+            crawler = XProfileCrawler(settings.scrapecreators_api_key)
+            posts = crawler.fetch_user_posts(handle)
+        elif platform == "instagram":
+            from viralpulse.platforms.instagram_profile import InstagramProfileCrawler
+            crawler = InstagramProfileCrawler(settings.scrapecreators_api_key)
+            posts = crawler.fetch_user_posts(handle)
+
+        if posts:
+            now = datetime.now(timezone.utc).isoformat()
+            conn = get_conn()
+            for post in posts:
+                if not post.url:
+                    continue
+                existing = conn.execute("SELECT id FROM posts WHERE url = %s", (post.url,)).fetchone()
+                if not existing:
+                    conn.execute(
+                        """INSERT INTO posts (topic_id, platform, platform_id, url, author, author_url,
+                           title, content, media_url, published_at, fetched_at, raw_data)
+                           VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (post.platform, post.platform_id, post.url, post.author, post.author_url,
+                         post.title, post.content, post.media_url, post.published_at, now,
+                         json.dumps(post.raw_data, default=str)),
+                    )
+                    conn.execute(
+                        """INSERT INTO engagement (post_id, snapshot_at, likes, comments, shares, views)
+                           SELECT id, %s, %s, %s, %s, %s FROM posts WHERE url = %s""",
+                        (now, post.likes, post.comments, post.shares, post.views, post.url),
+                    )
+            conn.commit()
+            conn.close()
+            logger.info(f"Profile crawl @{handle} on {platform}: {len(posts)} posts")
+    except Exception as e:
+        logger.error(f"Profile crawl failed @{handle}: {e}")
+
+    return RedirectResponse(f"/view/profile?handle={handle}&platform={platform}")
+
+
+@app.get("/view/profile", include_in_schema=False, response_class=HTMLResponse)
+def view_profile(
+    handle: str = Query(...),
+    platform: str = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """HTML view of a tracked profile's posts."""
+    handle_clean = handle.lstrip("@")
+
+    posts_data = []
+    if settings.database_url:
+        conn = get_conn()
+        query = """SELECT p.*, e.likes, e.comments, e.shares, e.views
+                   FROM posts p
+                   LEFT JOIN LATERAL (
+                       SELECT * FROM engagement WHERE post_id = p.id ORDER BY snapshot_at DESC LIMIT 1
+                   ) e ON true
+                   WHERE p.author ILIKE %s"""
+        params = [f"%{handle_clean}%"]
+        if platform:
+            query += " AND p.platform = %s"
+            params.append(platform)
+        query += " ORDER BY e.likes DESC NULLS LAST LIMIT %s"
+        params.append(limit)
+        posts_data = conn.execute(query, params).fetchall()
+        conn.close()
+
+    cards = ""
+    for i, r in enumerate(posts_data):
+        p_label, p_color, _ = PLATFORM_ICONS.get(r["platform"], (r["platform"], "#888", ""))
+        content_preview = (r.get("content") or "")[:280]
+        if len(r.get("content") or "") > 280:
+            content_preview += "..."
+
+        title_html = f'<div style="font-weight:600;font-size:15px;margin-bottom:6px;color:#1c1917;">{r["title"]}</div>' if r.get("title") else ""
+
+        pub_date = ""
+        if r.get("published_at"):
+            try:
+                dt = datetime.fromisoformat(str(r["published_at"]).replace(" ", "T").split("+")[0])
+                pub_date = dt.strftime("%b %d, %Y")
+            except Exception:
+                pub_date = str(r["published_at"])[:10]
+
+        likes = r.get("likes") or 0
+        comments = r.get("comments") or 0
+        shares = r.get("shares") or 0
+        views = r.get("views") or 0
+
+        def _metric(value: str, label: str, color: str = "#1c1917"):
+            return f'<div style="text-align:center;min-width:70px;"><div style="color:{color};font-size:18px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;">{value}</div><div style="color:#a8a29e;font-size:11px;margin-top:2px;">{label}</div></div>'
+
+        metrics = ""
+        if views:
+            metrics += _metric(_fmt_num(views), "Views")
+        if likes:
+            metrics += _metric(_fmt_num(likes), "Likes", "#dc2626")
+        if comments:
+            metrics += _metric(_fmt_num(comments), "Comments", "#2563eb")
+        if shares:
+            metrics += _metric(_fmt_num(shares), "Shares", "#7c3aed")
+
+        metrics_html = f'''
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:space-around;margin-top:14px;padding:14px 12px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;">
+            {metrics}
+          </div>''' if metrics else ""
+
+        cards += f"""
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:10px;padding:20px;margin-bottom:16px;transition:box-shadow 0.2s,border-color 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.06)';this.style.borderColor='#d6d3d1'" onmouseout="this.style.boxShadow='none';this.style.borderColor='#e7e5e4'">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="background:{p_color}15;color:{p_color};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;">{p_label}</span>
+              <span style="color:#a8a29e;font-size:12px;">{pub_date}</span>
+              <span style="color:#d6d3d1;font-size:11px;font-family:'IBM Plex Mono',monospace;">#{i + 1}</span>
+            </div>
+            <a href="{r['url']}" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none;white-space:nowrap;font-weight:500;">View &rarr;</a>
+          </div>
+          {title_html}
+          <p style="color:#44403c;font-size:14px;line-height:1.65;margin-bottom:0;">{content_preview}</p>
+          {metrics_html}
+        </div>"""
+
+    plat_label = f" on {platform}" if platform else ""
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <title>@{handle_clean} — ViralPulse</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {{ margin:0; padding:0; box-sizing:border-box; }}
+    body {{ background:#fafaf9; color:#1c1917; font-family:'Outfit',system-ui,sans-serif; padding:32px 20px; -webkit-font-smoothing:antialiased; }}
+    .container {{ max-width:900px; margin:0 auto; }}
+    a {{ color:#2563eb; text-decoration:none; }}
+    a:hover {{ text-decoration:underline; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="margin-bottom:32px;">
+      <a href="/" style="color:#a8a29e;font-size:13px;text-decoration:none;">&larr; Back</a>
+      <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:2.2em;font-weight:400;margin-top:8px;">@{handle_clean}</h1>
+      <p style="color:#78716c;font-size:14px;margin-top:6px;">{len(posts_data)} posts{plat_label} &middot; sorted by likes &middot; <a href="/api/v1/profiles/{handle_clean}/posts{"?platform=" + platform if platform else ""}" style="font-size:13px;">JSON</a></p>
+    </div>
+
+    {cards if cards else '<p style="color:#a8a29e;padding:48px 0;text-align:center;">No posts found for this profile. <a href="/api/v1/crawl-profile?platform=' + (platform or 'twitter') + '&handle=' + handle_clean + '">Crawl now</a></p>'}
+  </div>
+</body>
+</html>"""
+
+
 @app.get("/api/v1/posts/{post_id}")
 def get_post(post_id: str):
     if not settings.database_url:

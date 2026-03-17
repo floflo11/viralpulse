@@ -56,6 +56,19 @@ CREATE TABLE IF NOT EXISTS scores (
 
 CREATE INDEX IF NOT EXISTS idx_scores_composite ON scores(composite DESC);
 
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    display_name TEXT DEFAULT '',
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(platform, handle)
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_platform ON profiles(platform, handle);
+
 CREATE TABLE IF NOT EXISTS crawl_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     topic_id UUID REFERENCES topics(id) ON DELETE CASCADE,
