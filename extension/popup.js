@@ -34,7 +34,21 @@ saveBtn.addEventListener('click', async () => {
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const metadata = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_METADATA' });
+
+    // Try to inject content script if not already loaded
+    let metadata = {};
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js'],
+      });
+      // Small delay for script to initialize
+      await new Promise(r => setTimeout(r, 200));
+      metadata = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_METADATA' });
+    } catch (e) {
+      console.log('Content script extraction failed, saving URL only:', e);
+      metadata = { author: '', content: document.title || '', engagement: {}, hashtags: [] };
+    }
 
     const result = await chrome.runtime.sendMessage({
       type: 'SAVE_POST',

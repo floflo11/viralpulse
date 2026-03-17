@@ -3,7 +3,7 @@
   "name": "ViralPulse — Save Viral Posts",
   "version": "1.0.0",
   "description": "Save any social media post or article to your ViralPulse library with one click.",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["https://api.aithatjustworks.com/*"],
   "action": {
     "default_popup": "popup.html",
