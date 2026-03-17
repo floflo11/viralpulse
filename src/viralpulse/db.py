@@ -80,6 +80,37 @@ CREATE TABLE IF NOT EXISTS crawl_runs (
     error TEXT,
     status TEXT DEFAULT 'running'
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_key TEXT UNIQUE NOT NULL,
+    name TEXT DEFAULT '',
+    email TEXT UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);
+
+CREATE TABLE IF NOT EXISTS saved_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    platform TEXT DEFAULT 'web',
+    author TEXT DEFAULT '',
+    content TEXT DEFAULT '',
+    engagement JSONB,
+    hashtags JSONB DEFAULT '[]'::jsonb,
+    published_at TIMESTAMPTZ,
+    user_note TEXT,
+    screenshot_url TEXT,
+    source TEXT DEFAULT 'api',
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_posts_user ON saved_posts(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_saved_posts_platform ON saved_posts(user_id, platform);
 """
 
 
