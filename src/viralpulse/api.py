@@ -371,28 +371,89 @@ def view_posts(
         elif thumb:
             media_html = f'<a href="{post.url}" target="_blank"><img src="{thumb}" alt="" style="width:100%;max-height:360px;object-fit:cover;border-radius:8px;margin-bottom:12px;" loading="lazy" onerror="this.style.display=\'none\'"></a>'
 
+        # Compute engagement rate if we have views
+        eng_rate = ""
+        if post.engagement.views and post.engagement.views > 0:
+            rate = (post.engagement.likes + post.engagement.comments + post.engagement.shares) / post.engagement.views * 100
+            eng_rate = f"{rate:.2f}%"
+
+        # Hours since published
+        age_str = ""
+        if post.published_at:
+            try:
+                pub_dt = datetime.fromisoformat(str(post.published_at).replace(" ", "T").split("+")[0])
+                hours = (datetime.now(timezone.utc).replace(tzinfo=None) - pub_dt).total_seconds() / 3600
+                if hours < 24:
+                    age_str = f"{hours:.0f}h ago"
+                else:
+                    age_str = f"{hours / 24:.1f}d ago"
+            except Exception:
+                pass
+
+        # Score bar helper
+        def _score_bar(label, value, color, is_active=False):
+            pct = int(value * 100)
+            border = f"border:2px solid {color};" if is_active else "border:1px solid #1f2937;"
+            glow = f"box-shadow:0 0 8px {color}44;" if is_active else ""
+            return f'''<div style="flex:1;min-width:100px;background:#0d1117;border-radius:8px;padding:10px 12px;{border}{glow}">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">{label}</span>
+                <span style="color:{color};font-size:13px;font-weight:700;">{pct}</span>
+              </div>
+              <div style="height:4px;background:#1f2937;border-radius:2px;overflow:hidden;">
+                <div style="width:{pct}%;height:100%;background:{color};border-radius:2px;"></div>
+              </div>
+            </div>'''
+
+        rel_color = "#60a5fa"
+        eng_color = "#a78bfa"
+        vel_color = "#34d399"
+        comp_color = score_bar_color
+
+        scores_html = f'''
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #1f2937;">
+            {_score_bar("Composite", post.scores.composite, comp_color, sort == "composite")}
+            {_score_bar("Relevance", post.scores.relevance, rel_color, sort == "relevance")}
+            {_score_bar("Engagement", post.scores.engagement_normalized, eng_color, sort == "engagement")}
+            {_score_bar("Velocity", post.scores.velocity, vel_color, sort == "velocity")}
+          </div>'''
+
+        # Raw engagement numbers grid
+        eng_items = ""
+        if post.engagement.views:
+            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.views)}</div><div style="color:#6b7280;font-size:11px;">Views</div></div>'
+        if post.engagement.likes:
+            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.likes)}</div><div style="color:#6b7280;font-size:11px;">Likes</div></div>'
+        if post.engagement.comments:
+            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.comments)}</div><div style="color:#6b7280;font-size:11px;">Comments</div></div>'
+        if post.engagement.shares:
+            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.shares)}</div><div style="color:#6b7280;font-size:11px;">Shares</div></div>'
+        if eng_rate:
+            eng_items += f'<div style="text-align:center;"><div style="color:#fbbf24;font-size:16px;font-weight:700;">{eng_rate}</div><div style="color:#6b7280;font-size:11px;">Eng. Rate</div></div>'
+        if age_str:
+            eng_items += f'<div style="text-align:center;"><div style="color:#9ca3af;font-size:16px;font-weight:700;">{age_str}</div><div style="color:#6b7280;font-size:11px;">Posted</div></div>'
+
+        metrics_html = f'''
+          <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:space-around;margin-top:10px;padding:12px 8px;background:#0d1117;border-radius:8px;">
+            {eng_items}
+          </div>''' if eng_items else ""
+
         cards += f"""
-        <div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:16px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#374151'" onmouseout="this.style.borderColor='#1f2937'">
+        <div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:20px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#374151'" onmouseout="this.style.borderColor='#1f2937'">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-            <div style="display:flex;align-items:center;gap:10px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <span style="background:{p_color}22;color:{p_color};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;">{p_label}</span>
               <a href="{post.author_url or '#'}" target="_blank" style="color:#9ca3af;font-size:13px;text-decoration:none;">{post.author}</a>
               <span style="color:#4b5563;font-size:12px;">{pub_date}</span>
+              <span style="color:#4b5563;font-size:11px;">#{i + 1}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <div style="width:40px;height:6px;background:#1f2937;border-radius:3px;overflow:hidden;">
-                <div style="width:{score_pct}%;height:100%;background:{score_bar_color};border-radius:3px;"></div>
-              </div>
-              <span style="color:{score_bar_color};font-size:12px;font-weight:600;">{score_pct}</span>
-            </div>
+            <a href="{post.url}" target="_blank" style="color:#60a5fa;font-size:12px;text-decoration:none;white-space:nowrap;">View on {p_label} &#x2197;</a>
           </div>
           {title_html}
           {media_html}
-          <p style="color:#d1d5db;font-size:14px;line-height:1.6;margin-bottom:12px;">{content_preview}</p>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">{engagement_pills}</div>
-            <a href="{post.url}" target="_blank" style="color:#60a5fa;font-size:12px;text-decoration:none;white-space:nowrap;">View on {p_label} &#x2197;</a>
-          </div>
+          <p style="color:#d1d5db;font-size:14px;line-height:1.6;margin-bottom:0;">{content_preview}</p>
+          {metrics_html}
+          {scores_html}
         </div>"""
 
     tiktok_script = '<script async src="https://www.tiktok.com/embed.js"></script>' if has_tiktok else ""
