@@ -330,16 +330,16 @@ def view_posts(
 
     sort_options = ""
     for s in ["composite", "engagement", "velocity", "relevance", "recent"]:
-        active = "background:#e94560;color:#fff;" if s == sort else "background:#1a1a2e;color:#aaa;"
+        cls = "pill active" if s == sort else "pill"
         encoded_topic = topic.replace(" ", "+")
         plat_param = f"&platform={platform}" if platform else ""
-        sort_options += f'<a href="/view/posts?topic={encoded_topic}{plat_param}&sort={s}&limit={limit}" style="{active}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">{s}</a> '
+        sort_options += f'<a href="/view/posts?topic={encoded_topic}{plat_param}&sort={s}&limit={limit}" class="{cls}">{s}</a> '
 
-    platform_filters = f'<a href="/view/posts?topic={topic.replace(" ", "+")}&sort={sort}&limit={limit}" style="{"background:#e94560;color:#fff;" if not platform else "background:#1a1a2e;color:#aaa;"}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">All</a> '
+    platform_filters = f'<a href="/view/posts?topic={topic.replace(" ", "+")}&sort={sort}&limit={limit}" class="pill{"  active" if not platform else ""}">All</a> '
     for p in ALL_PLATFORMS:
-        active = "background:#e94560;color:#fff;" if p == platform else "background:#1a1a2e;color:#aaa;"
+        cls = "pill active" if p == platform else "pill"
         label, color, _ = PLATFORM_ICONS.get(p, (p, "#888", ""))
-        platform_filters += f'<a href="/view/posts?topic={topic.replace(" ", "+")}&platform={p}&sort={sort}&limit={limit}" style="{active}padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;border:1px solid #333;">{label}</a> '
+        platform_filters += f'<a href="/view/posts?topic={topic.replace(" ", "+")}&platform={p}&sort={sort}&limit={limit}" class="{cls}">{label}</a> '
 
     has_tiktok = False
     cards = ""
@@ -352,7 +352,7 @@ def view_posts(
         if len(post.content or "") > 280:
             content_preview += "..."
 
-        title_html = f'<div style="font-weight:600;font-size:15px;margin-bottom:6px;color:#fff;">{post.title}</div>' if post.title else ""
+        title_html = f'<div style="font-weight:600;font-size:15px;margin-bottom:6px;color:#1c1917;">{post.title}</div>' if post.title else ""
 
         engagement_pills = ""
         if post.engagement.views:
@@ -403,73 +403,71 @@ def view_posts(
             except Exception:
                 pass
 
-        # Score bar helper
+        # Score bar helper — light theme
         def _score_bar(label, value, color, is_active=False):
             pct = int(value * 100)
-            border = f"border:2px solid {color};" if is_active else "border:1px solid #1f2937;"
-            glow = f"box-shadow:0 0 8px {color}44;" if is_active else ""
-            return f'''<div style="flex:1;min-width:100px;background:#0d1117;border-radius:8px;padding:10px 12px;{border}{glow}">
+            border = f"border:2px solid {color};" if is_active else "border:1px solid #e7e5e4;"
+            bg = f"background:{color}08;" if is_active else "background:#fafaf9;"
+            return f'''<div style="flex:1;min-width:100px;{bg}border-radius:8px;padding:10px 12px;{border}">
               <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <span style="color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">{label}</span>
+                <span style="color:#78716c;font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">{label}</span>
                 <span style="color:{color};font-size:13px;font-weight:700;">{pct}</span>
               </div>
-              <div style="height:4px;background:#1f2937;border-radius:2px;overflow:hidden;">
+              <div style="height:4px;background:#e7e5e4;border-radius:2px;overflow:hidden;">
                 <div style="width:{pct}%;height:100%;background:{color};border-radius:2px;"></div>
               </div>
             </div>'''
 
-        rel_color = "#60a5fa"
-        eng_color = "#a78bfa"
-        vel_color = "#34d399"
-        comp_color = score_bar_color
+        rel_color = "#2563eb"
+        eng_color = "#7c3aed"
+        vel_color = "#16a34a"
+        comp_color = "#dc2626" if score_pct >= 70 else "#d97706" if score_pct >= 40 else "#78716c"
 
         scores_html = f'''
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #1f2937;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #e7e5e4;">
             {_score_bar("Composite", post.scores.composite, comp_color, sort == "composite")}
             {_score_bar("Relevance", post.scores.relevance, rel_color, sort == "relevance")}
             {_score_bar("Engagement", post.scores.engagement_normalized, eng_color, sort == "engagement")}
             {_score_bar("Velocity", post.scores.velocity, vel_color, sort == "velocity")}
           </div>'''
 
-        # Raw engagement numbers grid
+        # Raw engagement numbers
         eng_items = ""
         if post.engagement.views:
-            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.views)}</div><div style="color:#6b7280;font-size:11px;">Views</div></div>'
+            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.views)}</div><div style="color:#a8a29e;font-size:11px;">Views</div></div>'
         if post.engagement.likes:
-            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.likes)}</div><div style="color:#6b7280;font-size:11px;">Likes</div></div>'
+            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.likes)}</div><div style="color:#a8a29e;font-size:11px;">Likes</div></div>'
         if post.engagement.comments:
-            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.comments)}</div><div style="color:#6b7280;font-size:11px;">Comments</div></div>'
+            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.comments)}</div><div style="color:#a8a29e;font-size:11px;">Comments</div></div>'
         if post.engagement.shares:
-            eng_items += f'<div style="text-align:center;"><div style="color:#fff;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.shares)}</div><div style="color:#6b7280;font-size:11px;">Shares</div></div>'
+            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.shares)}</div><div style="color:#a8a29e;font-size:11px;">Shares</div></div>'
         if eng_rate:
-            eng_items += f'<div style="text-align:center;"><div style="color:#fbbf24;font-size:16px;font-weight:700;">{eng_rate}</div><div style="color:#6b7280;font-size:11px;">Eng. Rate</div></div>'
+            eng_items += f'<div style="text-align:center;"><div style="color:#d97706;font-size:16px;font-weight:700;">{eng_rate}</div><div style="color:#a8a29e;font-size:11px;">Eng. Rate</div></div>'
         if age_str:
-            eng_items += f'<div style="text-align:center;"><div style="color:#9ca3af;font-size:16px;font-weight:700;">{age_str}</div><div style="color:#6b7280;font-size:11px;">Posted</div></div>'
+            eng_items += f'<div style="text-align:center;"><div style="color:#57534e;font-size:16px;font-weight:700;">{age_str}</div><div style="color:#a8a29e;font-size:11px;">Posted</div></div>'
 
         metrics_html = f'''
-          <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:space-around;margin-top:10px;padding:12px 8px;background:#0d1117;border-radius:8px;">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:space-around;margin-top:12px;padding:14px 8px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;">
             {eng_items}
           </div>''' if eng_items else ""
 
         cards += f"""
-        <div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;margin-bottom:20px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#374151'" onmouseout="this.style.borderColor='#1f2937'">
+        <div style="background:#fff;border:1px solid #e7e5e4;border-radius:10px;padding:20px;margin-bottom:16px;transition:box-shadow 0.2s,border-color 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.06)';this.style.borderColor='#d6d3d1'" onmouseout="this.style.boxShadow='none';this.style.borderColor='#e7e5e4'">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <span style="background:{p_color}22;color:{p_color};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;">{p_label}</span>
-              <a href="{post.author_url or '#'}" target="_blank" style="color:#9ca3af;font-size:13px;text-decoration:none;">{post.author}</a>
-              <span style="color:#4b5563;font-size:12px;">{pub_date}</span>
-              <span style="color:#4b5563;font-size:11px;">#{i + 1}</span>
+              <span style="background:{p_color}15;color:{p_color};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;">{p_label}</span>
+              <a href="{post.author_url or '#'}" target="_blank" style="color:#57534e;font-size:13px;text-decoration:none;font-weight:500;">{post.author}</a>
+              <span style="color:#a8a29e;font-size:12px;">{pub_date}</span>
+              <span style="color:#d6d3d1;font-size:11px;font-family:'IBM Plex Mono',monospace;">#{i + 1}</span>
             </div>
-            <a href="{post.url}" target="_blank" style="color:#60a5fa;font-size:12px;text-decoration:none;white-space:nowrap;">View on {p_label} &#x2197;</a>
+            <a href="{post.url}" target="_blank" style="color:#2563eb;font-size:12px;text-decoration:none;white-space:nowrap;font-weight:500;">View &rarr;</a>
           </div>
           {title_html}
           {media_html}
-          <p style="color:#d1d5db;font-size:14px;line-height:1.6;margin-bottom:0;">{content_preview}</p>
+          <p style="color:#44403c;font-size:14px;line-height:1.65;margin-bottom:0;">{content_preview}</p>
           {metrics_html}
           {scores_html}
         </div>"""
-
-    tiktok_script = '<script async src="https://www.tiktok.com/embed.js"></script>' if has_tiktok else ""
 
     json_url = f"/api/v1/posts?topic={topic.replace(' ', '+')}"
     if platform:
@@ -481,33 +479,38 @@ def view_posts(
 <head>
   <title>{topic} — ViralPulse</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     * {{ margin:0; padding:0; box-sizing:border-box; }}
-    body {{ background:#0a0a1a; color:#e2e2e2; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; padding:32px 20px; }}
-    .container {{ max-width:860px; margin:0 auto; }}
-    a {{ color:#60a5fa; }}
+    body {{ background:#fafaf9; color:#1c1917; font-family:'Outfit',system-ui,sans-serif; padding:32px 20px; -webkit-font-smoothing:antialiased; }}
+    .container {{ max-width:900px; margin:0 auto; }}
+    a {{ color:#2563eb; text-decoration:none; }}
+    a:hover {{ text-decoration:underline; }}
+    .pill {{ display:inline-block; padding:6px 14px; border-radius:8px; font-size:13px; text-decoration:none; border:1px solid #e7e5e4; transition:all 0.12s; font-weight:500; }}
+    .pill:hover {{ border-color:#d6d3d1; background:#f5f5f4; text-decoration:none; }}
+    .pill.active {{ background:#1c1917; color:#fff; border-color:#1c1917; }}
+    .pill.active:hover {{ background:#292524; }}
   </style>
 </head>
 <body>
   <div class="container">
-    <div style="margin-bottom:28px;">
-      <a href="/" style="color:#6b7280;text-decoration:none;font-size:13px;">&larr; Back to topics</a>
-      <h1 style="font-size:1.8em;margin-top:8px;">{topic}</h1>
-      <p style="color:#6b7280;font-size:14px;margin-top:4px;">{result.count} posts &middot; sorted by {sort} &middot; <a href="{json_url}" style="font-size:13px;">JSON API</a></p>
+    <div style="margin-bottom:32px;">
+      <a href="/" style="color:#a8a29e;font-size:13px;text-decoration:none;">&larr; Back</a>
+      <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:2.2em;font-weight:400;margin-top:8px;">{topic}</h1>
+      <p style="color:#78716c;font-size:14px;margin-top:6px;">{result.count} posts &middot; sorted by <strong>{sort}</strong> &middot; <a href="{json_url}" style="font-size:13px;">JSON</a></p>
     </div>
 
-    <div style="margin-bottom:16px;">
-      <div style="margin-bottom:8px;color:#9ca3af;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Platform</div>
+    <div style="margin-bottom:14px;">
+      <div style="margin-bottom:8px;color:#a8a29e;font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Platform</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">{platform_filters}</div>
     </div>
-    <div style="margin-bottom:24px;">
-      <div style="margin-bottom:8px;color:#9ca3af;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Sort by</div>
+    <div style="margin-bottom:28px;">
+      <div style="margin-bottom:8px;color:#a8a29e;font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Sort by</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">{sort_options}</div>
     </div>
 
-    {cards if cards else '<p style="color:#6b7280;padding:40px 0;text-align:center;">No posts found for this query.</p>'}
+    {cards if cards else '<p style="color:#a8a29e;padding:48px 0;text-align:center;">No posts found for this query.</p>'}
   </div>
-  {tiktok_script}
 </body>
 </html>"""
 
