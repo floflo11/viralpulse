@@ -5,7 +5,7 @@ from viralpulse.platforms.base import RawPost
 
 
 def test_all_platforms_registered():
-    assert set(ALL_PLATFORMS) == {"twitter", "reddit", "tiktok", "instagram", "linkedin", "youtube"}
+    assert set(ALL_PLATFORMS) == {"reddit", "tiktok", "instagram", "youtube"}
 
 
 def test_crawlers_have_search_method():
@@ -24,6 +24,8 @@ def _mock_response(data: dict):
 
 @patch("httpx.get")
 def test_twitter_search_parses(mock_get):
+    """Test Twitter crawler directly (disabled in registry but module still works)."""
+    from viralpulse.platforms.twitter import TwitterCrawler
     mock_get.return_value = _mock_response({
         "tweets": [{
             "id": "123",
@@ -35,7 +37,7 @@ def test_twitter_search_parses(mock_get):
             "created_at": "Wed Mar 12 14:30:00 +0000 2026",
         }]
     })
-    crawler = CRAWLERS["twitter"](api_key="test")
+    crawler = TwitterCrawler(api_key="test")
     posts = crawler.search("AI")
     assert len(posts) == 1
     assert posts[0].platform == "twitter"
@@ -108,6 +110,8 @@ def test_instagram_search_parses(mock_get):
 
 @patch("httpx.get")
 def test_linkedin_search_parses(mock_get):
+    """Test LinkedIn crawler directly (disabled in registry but module still works)."""
+    from viralpulse.platforms.linkedin import LinkedInCrawler
     mock_get.return_value = _mock_response({
         "posts": [{
             "id": "li-123",
@@ -118,7 +122,7 @@ def test_linkedin_search_parses(mock_get):
             "comments": 20,
         }]
     })
-    crawler = CRAWLERS["linkedin"](api_key="test")
+    crawler = LinkedInCrawler(api_key="test")
     posts = crawler.search("AI")
     assert len(posts) == 1
     assert posts[0].platform == "linkedin"

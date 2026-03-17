@@ -17,9 +17,9 @@ def test_platforms():
     assert resp.status_code == 200
     platforms = resp.json()["platforms"]
     names = {p["name"] for p in platforms}
-    assert "twitter" in names
     assert "reddit" in names
-    assert len(names) == 6
+    assert "tiktok" in names
+    assert len(names) == 4
 
 
 def test_posts_requires_topic():

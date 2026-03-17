@@ -9,12 +9,14 @@ from .youtube import YouTubeCrawler
 from .base import PlatformCrawler, RawPost
 
 CRAWLERS = {
-    "twitter": TwitterCrawler,
     "reddit": RedditCrawler,
     "tiktok": TikTokCrawler,
     "instagram": InstagramCrawler,
-    "linkedin": LinkedInCrawler,
     "youtube": YouTubeCrawler,
+    # Twitter and LinkedIn disabled — ScrapeCreators lacks search endpoints for these.
+    # Re-enable when endpoints become available or alternative APIs are integrated.
+    # "twitter": TwitterCrawler,
+    # "linkedin": LinkedInCrawler,
 }
 
 ALL_PLATFORMS = list(CRAWLERS.keys())

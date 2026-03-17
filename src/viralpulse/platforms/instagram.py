@@ -10,7 +10,7 @@ from .base import PlatformCrawler, RawPost
 
 class InstagramCrawler(PlatformCrawler):
     PLATFORM = "instagram"
-    BASE_URL = "https://api.scrapecreators.com/v1/instagram"
+    BASE_URL = "https://api.scrapecreators.com/v2/instagram"
 
     def search(self, query: str, max_results: int = 20) -> List[RawPost]:
         resp = httpx.get(
@@ -45,7 +45,7 @@ class InstagramCrawler(PlatformCrawler):
             posts.append(RawPost(
                 platform=self.PLATFORM,
                 platform_id=str(raw.get("id") or raw.get("pk", "")),
-                url=f"https://www.instagram.com/reel/{shortcode}/" if shortcode else "",
+                url=raw.get("url") or (f"https://www.instagram.com/reel/{shortcode}/" if shortcode else ""),
                 author=f"@{username}" if username else "",
                 author_url=f"https://www.instagram.com/{username}/" if username else None,
                 title=None,
