@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ViralPulse — Save Viral Posts",
-  "version": "1.1.0",
-  "description": "Select and save any social media post to your ViralPulse library. Your AI agents use saved posts as references for creating viral content.",
+  "version": "1.2.0",
+  "description": "Save any social media post to your ViralPulse library. Your AI agents use saved posts as references for creating viral content.",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["https://api.aithatjustworks.com/*"],
   "action": {
@@ -13,13 +13,31 @@
       "128": "icons/icon128.png"
     }
   },
+  "content_scripts": [{
+    "matches": [
+      "https://x.com/*",
+      "https://twitter.com/*",
+      "https://www.reddit.com/*",
+      "https://old.reddit.com/*",
+      "https://www.linkedin.com/*",
+      "https://www.youtube.com/*",
+      "https://www.tiktok.com/*",
+      "https://www.instagram.com/*",
+      "https://*.substack.com/*",
+      "https://techcrunch.com/*",
+      "https://medium.com/*",
+      "https://news.ycombinator.com/*"
+    ],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
   "background": {
     "service_worker": "background.js"
   },
   "commands": {
     "activate-selector": {
       "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
-      "description": "Select a post to save"
+      "description": "Save current post"
     }
   },
   "icons": {

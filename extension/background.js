@@ -24,12 +24,15 @@ async function handleSave({ metadata, userNote, tabId, url }, sender) {
     }
   }
 
-  // Capture visible tab screenshot
+  // Capture visible tab screenshot — may fail if no active tab gesture
   let screenshot_base64 = null;
   try {
-    screenshot_base64 = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
+    // captureVisibleTab needs activeTab permission granted by user gesture
+    const windowId = sender?.tab?.windowId || null;
+    screenshot_base64 = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   } catch (e) {
-    console.log('Screenshot capture failed:', e);
+    console.log('Screenshot capture failed (expected if no user gesture):', e.message);
+    // Still proceed — API will use VM fallback for screenshot
   }
 
   const resp = await fetch(`${API_BASE}/api/v1/save`, {
