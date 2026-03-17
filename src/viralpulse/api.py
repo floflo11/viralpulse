@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from viralpulse.config import settings
 from viralpulse.db import get_conn, init_db
@@ -38,9 +38,102 @@ SORT_COLUMNS = {
 }
 
 
-@app.get("/", include_in_schema=False)
+@app.get("/", include_in_schema=False, response_class=HTMLResponse)
 def root():
-    return RedirectResponse("/docs")
+    """Landing page with example queries."""
+    if not settings.database_url:
+        return RedirectResponse("/docs")
+
+    # Get available topics from DB
+    try:
+        conn = get_conn()
+        topics = conn.execute(
+            """SELECT t.name, COUNT(p.id) as post_count
+               FROM topics t LEFT JOIN posts p ON p.topic_id = t.id
+               WHERE t.enabled = TRUE
+               GROUP BY t.id ORDER BY t.name"""
+        ).fetchall()
+        conn.close()
+    except Exception:
+        topics = []
+
+    topic_cards = ""
+    for t in topics:
+        name = t["name"]
+        count = t["post_count"]
+        encoded = name.replace(" ", "+")
+        topic_cards += f"""
+        <div style="background:#1a1a2e;border:1px solid #16213e;border-radius:12px;padding:20px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;color:#e94560;">{name}</h3>
+            <span style="color:#888;font-size:13px;">{count} posts</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <a href="/api/v1/posts?topic={encoded}&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Top 5 (all platforms)</a>
+            <a href="/api/v1/posts?topic={encoded}&platform=tiktok&sort=engagement&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">TikTok by engagement</a>
+            <a href="/api/v1/posts?topic={encoded}&platform=reddit&sort=composite&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Reddit top composite</a>
+            <a href="/api/v1/posts?topic={encoded}&platform=youtube&limit=5" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">YouTube top 5</a>
+            <a href="/api/v1/posts?topic={encoded}&sort=velocity&limit=10" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Fastest rising (velocity)</a>
+            <a href="/api/v1/posts?topic={encoded}&sort=recent&limit=10" style="background:#0f3460;color:#e2e2e2;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:13px;">Most recent</a>
+          </div>
+        </div>"""
+
+    if not topic_cards:
+        topic_cards = '<p style="color:#888;">No topics yet. Add one via <code>POST /api/v1/topics</code> or the CLI.</p>'
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <title>ViralPulse API</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * {{ margin:0; padding:0; box-sizing:border-box; }}
+    body {{ background:#0a0a1a; color:#e2e2e2; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; padding:40px 20px; }}
+    .container {{ max-width:800px; margin:0 auto; }}
+    a {{ color:#e94560; }}
+    a:hover {{ opacity:0.8; }}
+    code {{ background:#1a1a2e; padding:2px 6px; border-radius:4px; font-size:13px; }}
+    pre {{ background:#1a1a2e; padding:16px; border-radius:8px; overflow-x:auto; font-size:13px; line-height:1.5; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="font-size:2.2em;margin-bottom:4px;">ViralPulse API</h1>
+    <p style="color:#888;margin-bottom:30px;">Top viral social media posts for any topic. Built for AI agents.</p>
+
+    <h2 style="margin-bottom:16px;color:#e94560;">Try it now</h2>
+    {topic_cards}
+
+    <h2 style="margin-top:36px;margin-bottom:16px;color:#e94560;">For AI Agents</h2>
+    <pre>curl "{settings.api_host if settings.api_host != '0.0.0.0' else 'http://localhost'}:8000/api/v1/posts?topic=AI+video+tools&limit=20"</pre>
+
+    <h2 style="margin-top:36px;margin-bottom:16px;color:#e94560;">Endpoints</h2>
+    <div style="background:#1a1a2e;border-radius:12px;padding:20px;line-height:2;">
+      <code>GET /api/v1/posts?topic=...&platform=...&sort=...&limit=...&days=...</code><br>
+      <code>GET /api/v1/posts/{{post_id}}</code><br>
+      <code>GET /api/v1/topics</code><br>
+      <code>POST /api/v1/topics?name=...</code><br>
+      <code>GET /api/v1/platforms</code><br>
+      <code>GET /api/v1/health</code><br>
+    </div>
+
+    <h2 style="margin-top:36px;margin-bottom:16px;color:#e94560;">Sort options</h2>
+    <div style="background:#1a1a2e;border-radius:12px;padding:20px;line-height:2;font-size:14px;">
+      <code>composite</code> — weighted blend of relevance + engagement + velocity (default)<br>
+      <code>engagement</code> — highest likes + comments + shares<br>
+      <code>velocity</code> — fastest growing relative to post age<br>
+      <code>relevance</code> — best keyword match<br>
+      <code>recent</code> — newest first
+    </div>
+
+    <p style="margin-top:36px;color:#555;font-size:13px;">
+      <a href="/docs">Swagger docs</a> &middot;
+      Platforms: Reddit, TikTok, Instagram, YouTube &middot;
+      Refreshed daily
+    </p>
+  </div>
+</body>
+</html>"""
 
 
 @app.on_event("startup")
