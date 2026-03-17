@@ -294,7 +294,28 @@ def _get_thumbnail(post_id: str, platform: str, url: str, media_url: str) -> str
     # TikTok via oEmbed (free, no auth, publicly accessible)
     if platform == "tiktok" and "tiktok.com" in url:
         return _get_tiktok_thumbnail(url)
-    # Reddit/Instagram CDN thumbnails expire or require auth — skip
+    # Reddit: i.redd.it images are public, preview.redd.it can expire
+    if platform == "reddit":
+        # Check media_url first (set by crawler from thumbnail field)
+        if media_url and "i.redd.it" in media_url:
+            return media_url
+        # Check raw_data for direct image links
+        try:
+            conn = get_conn()
+            row = conn.execute(
+                """SELECT raw_data->>'url_overridden_by_dest' as dest,
+                          raw_data->>'thumbnail' as thumb,
+                          raw_data->>'post_hint' as hint
+                   FROM posts WHERE id = %s""",
+                (post_id,),
+            ).fetchone()
+            conn.close()
+            if row and row.get("hint") == "image":
+                dest = row.get("dest", "")
+                if dest and ("i.redd.it" in dest or "i.imgur.com" in dest):
+                    return dest
+        except Exception:
+            pass
     return ""
 
 
@@ -379,10 +400,14 @@ def view_posts(
             has_tiktok = True
 
         media_html = ""
-        if embed:
+        if thumb:
+            # Thumbnail available — show image (with play button for video platforms)
+            if post.platform in ("tiktok", "youtube"):
+                media_html = f'<a href="{post.url}" target="_blank" style="display:block;position:relative;margin-bottom:12px;"><img src="{thumb}" style="width:100%;max-height:400px;object-fit:cover;border-radius:8px;" loading="lazy" onerror="this.parentElement.style.display=\'none\'"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;background:rgba(0,0,0,0.55);border-radius:50%;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>'
+            else:
+                media_html = f'<a href="{post.url}" target="_blank" style="display:block;margin-bottom:12px;"><img src="{thumb}" alt="" style="width:100%;max-height:400px;object-fit:cover;border-radius:8px;" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></a>'
+        elif embed:
             media_html = f'<div style="margin-bottom:12px;">{embed}</div>'
-        elif thumb:
-            media_html = f'<a href="{post.url}" target="_blank"><img src="{thumb}" alt="" style="width:100%;max-height:360px;object-fit:cover;border-radius:8px;margin-bottom:12px;" loading="lazy" onerror="this.style.display=\'none\'"></a>'
 
         # Compute engagement rate if we have views
         eng_rate = ""
@@ -403,53 +428,30 @@ def view_posts(
             except Exception:
                 pass
 
-        # Score bar helper — light theme
-        def _score_bar(label, value, color, is_active=False):
-            pct = int(value * 100)
-            border = f"border:2px solid {color};" if is_active else "border:1px solid #e7e5e4;"
-            bg = f"background:{color}08;" if is_active else "background:#fafaf9;"
-            return f'''<div style="flex:1;min-width:100px;{bg}border-radius:8px;padding:10px 12px;{border}">
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <span style="color:#78716c;font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;">{label}</span>
-                <span style="color:{color};font-size:13px;font-weight:700;">{pct}</span>
-              </div>
-              <div style="height:4px;background:#e7e5e4;border-radius:2px;overflow:hidden;">
-                <div style="width:{pct}%;height:100%;background:{color};border-radius:2px;"></div>
-              </div>
-            </div>'''
+        # Build metrics — real numbers only, no abstract scores
+        total_eng = post.engagement.likes + post.engagement.comments + post.engagement.shares
 
-        rel_color = "#2563eb"
-        eng_color = "#7c3aed"
-        vel_color = "#16a34a"
-        comp_color = "#dc2626" if score_pct >= 70 else "#d97706" if score_pct >= 40 else "#78716c"
+        def _metric(value: str, label: str, color: str = "#1c1917"):
+            return f'<div style="text-align:center;min-width:70px;"><div style="color:{color};font-size:18px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;">{value}</div><div style="color:#a8a29e;font-size:11px;margin-top:2px;">{label}</div></div>'
 
-        scores_html = f'''
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #e7e5e4;">
-            {_score_bar("Composite", post.scores.composite, comp_color, sort == "composite")}
-            {_score_bar("Relevance", post.scores.relevance, rel_color, sort == "relevance")}
-            {_score_bar("Engagement", post.scores.engagement_normalized, eng_color, sort == "engagement")}
-            {_score_bar("Velocity", post.scores.velocity, vel_color, sort == "velocity")}
-          </div>'''
-
-        # Raw engagement numbers
-        eng_items = ""
+        metrics = ""
         if post.engagement.views:
-            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.views)}</div><div style="color:#a8a29e;font-size:11px;">Views</div></div>'
+            metrics += _metric(_fmt_num(post.engagement.views), "Views")
         if post.engagement.likes:
-            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.likes)}</div><div style="color:#a8a29e;font-size:11px;">Likes</div></div>'
+            metrics += _metric(_fmt_num(post.engagement.likes), "Likes", "#dc2626")
         if post.engagement.comments:
-            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.comments)}</div><div style="color:#a8a29e;font-size:11px;">Comments</div></div>'
+            metrics += _metric(_fmt_num(post.engagement.comments), "Comments", "#2563eb")
         if post.engagement.shares:
-            eng_items += f'<div style="text-align:center;"><div style="color:#1c1917;font-size:16px;font-weight:700;">{_fmt_num(post.engagement.shares)}</div><div style="color:#a8a29e;font-size:11px;">Shares</div></div>'
+            metrics += _metric(_fmt_num(post.engagement.shares), "Shares", "#7c3aed")
         if eng_rate:
-            eng_items += f'<div style="text-align:center;"><div style="color:#d97706;font-size:16px;font-weight:700;">{eng_rate}</div><div style="color:#a8a29e;font-size:11px;">Eng. Rate</div></div>'
+            metrics += _metric(eng_rate, "Eng. Rate", "#d97706")
         if age_str:
-            eng_items += f'<div style="text-align:center;"><div style="color:#57534e;font-size:16px;font-weight:700;">{age_str}</div><div style="color:#a8a29e;font-size:11px;">Posted</div></div>'
+            metrics += _metric(age_str, "Posted")
 
         metrics_html = f'''
-          <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:space-around;margin-top:12px;padding:14px 8px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;">
-            {eng_items}
-          </div>''' if eng_items else ""
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:space-around;margin-top:14px;padding:14px 12px;background:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;">
+            {metrics}
+          </div>''' if metrics else ""
 
         cards += f"""
         <div style="background:#fff;border:1px solid #e7e5e4;border-radius:10px;padding:20px;margin-bottom:16px;transition:box-shadow 0.2s,border-color 0.2s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.06)';this.style.borderColor='#d6d3d1'" onmouseout="this.style.boxShadow='none';this.style.borderColor='#e7e5e4'">
@@ -466,7 +468,6 @@ def view_posts(
           {media_html}
           <p style="color:#44403c;font-size:14px;line-height:1.65;margin-bottom:0;">{content_preview}</p>
           {metrics_html}
-          {scores_html}
         </div>"""
 
     json_url = f"/api/v1/posts?topic={topic.replace(' ', '+')}"
