@@ -35,6 +35,38 @@ def upload_screenshot_base64(user_id: str, post_id: str, b64_data: str) -> str:
     return upload_screenshot(user_id, post_id, png_bytes)
 
 
+def upload_image(user_id: str, post_id: str, index: int, b64_data: str) -> str:
+    """Upload a post image to S3. Returns the public URL."""
+    if "," in b64_data:
+        b64_data = b64_data.split(",", 1)[1]
+    png_bytes = base64.b64decode(b64_data)
+    key = f"{user_id}/{post_id}/img_{index}.png"
+    client = get_s3_client()
+    client.put_object(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        Body=png_bytes,
+        ContentType="image/png",
+    )
+    return f"https://{settings.s3_bucket}.s3.{settings.aws_region}.amazonaws.com/{key}"
+
+
+def upload_video_thumbnail(user_id: str, post_id: str, b64_data: str) -> str:
+    """Upload a video thumbnail to S3. Returns the public URL."""
+    if "," in b64_data:
+        b64_data = b64_data.split(",", 1)[1]
+    png_bytes = base64.b64decode(b64_data)
+    key = f"{user_id}/{post_id}/video_thumb.png"
+    client = get_s3_client()
+    client.put_object(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        Body=png_bytes,
+        ContentType="image/png",
+    )
+    return f"https://{settings.s3_bucket}.s3.{settings.aws_region}.amazonaws.com/{key}"
+
+
 def delete_screenshot(user_id: str, post_id: str):
     """Delete a screenshot from S3."""
     key = f"{user_id}/{post_id}.png"

@@ -111,6 +111,10 @@ CREATE TABLE IF NOT EXISTS saved_posts (
 
 CREATE INDEX IF NOT EXISTS idx_saved_posts_user ON saved_posts(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_saved_posts_platform ON saved_posts(user_id, platform);
+
+ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
+ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS video_thumbnail TEXT;
+ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS video_url TEXT;
 """
 
 

@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from viralpulse.s3 import upload_screenshot, upload_screenshot_base64
+from viralpulse.s3 import upload_screenshot, upload_screenshot_base64, upload_image, upload_video_thumbnail
 import base64
 
 
@@ -25,3 +25,20 @@ def test_upload_base64_with_data_uri(mock_client):
     b64 = "data:image/png;base64," + base64.b64encode(b"fake png").decode()
     url = upload_screenshot_base64("user-123", "post-456", b64)
     assert "post-456.png" in url
+
+
+@patch("viralpulse.s3.get_s3_client")
+def test_upload_image(mock_client):
+    mock_client.return_value = MagicMock()
+    b64 = base64.b64encode(b"fake png").decode()
+    url = upload_image("user-1", "post-1", 0, b64)
+    assert "user-1/post-1/img_0.png" in url
+    mock_client.return_value.put_object.assert_called_once()
+
+
+@patch("viralpulse.s3.get_s3_client")
+def test_upload_video_thumbnail(mock_client):
+    mock_client.return_value = MagicMock()
+    b64 = base64.b64encode(b"fake png").decode()
+    url = upload_video_thumbnail("user-1", "post-1", b64)
+    assert "video_thumb.png" in url
