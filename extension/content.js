@@ -318,10 +318,11 @@ async function doSave(btn, metadata, url, apiKey, note) {
 // ==========================================
 
 function injectFloatingButton() {
-  // For unsupported platforms, add a floating save button
-  if (config) return; // Don't add if platform buttons are injected
+  // Skip if floating button already exists
+  if (document.getElementById('vp-fab')) return;
 
   const fab = document.createElement('button');
+  fab.id = 'vp-fab';
   fab.className = 'vp-save-btn';
   fab.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483640;background:#fff;border:1px solid #e7e5e4;box-shadow:0 2px 12px rgba(0,0,0,0.1);padding:10px 16px;border-radius:12px;font-size:14px;';
   fab.innerHTML = `${VP_ICON} <span class="vp-label">Save to VP</span>`;
@@ -349,8 +350,16 @@ function injectFloatingButton() {
 // ==========================================
 
 function startObserver() {
+  // Initial injection attempt
   injectButtons();
-  injectFloatingButton();
+
+  // If no buttons were injected after a delay, show floating button as fallback
+  setTimeout(() => {
+    const injected = document.querySelectorAll('[data-vp]');
+    if (injected.length === 0) {
+      injectFloatingButton();
+    }
+  }, 3000);
 
   const observer = new MutationObserver(() => {
     injectButtons();

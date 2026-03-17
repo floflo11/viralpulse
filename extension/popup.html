@@ -4,13 +4,10 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { width: 300px; font-family: -apple-system, system-ui, sans-serif; background: #fafaf9; color: #1c1917; padding: 16px; }
-    h1 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+    h1 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
     h1 span { color: #dc2626; }
-    .main-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; background: #1c1917; color: #fff; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .main-btn:hover { background: #292524; }
-    .main-btn svg { flex-shrink: 0; }
-    .hint { font-size: 11px; color: #a8a29e; text-align: center; margin-top: 8px; }
-    .hint kbd { background: #f5f5f4; padding: 1px 5px; border-radius: 3px; border: 1px solid #e7e5e4; font-size: 10px; }
+    .info { font-size: 13px; color: #57534e; line-height: 1.5; margin-bottom: 12px; }
+    .info strong { color: #1c1917; }
     .divider { border-top: 1px solid #e7e5e4; margin: 12px 0; }
     .saved-info { font-size: 12px; color: #78716c; display: flex; justify-content: space-between; align-items: center; }
     .saved-info a { color: #2563eb; text-decoration: none; font-weight: 500; }
@@ -20,17 +17,16 @@
     .settings input { width: 100%; border: 1px solid #e7e5e4; border-radius: 6px; padding: 6px 8px; font-size: 12px; font-family: monospace; }
     .settings input:focus { outline: none; border-color: #dc2626; }
     .status { font-size: 12px; margin-top: 6px; text-align: center; }
+    .inject-btn { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: #1c1917; color: #fff; margin-bottom: 8px; }
+    .inject-btn:hover { background: #292524; }
   </style>
 </head>
 <body>
   <h1><span>Viral</span>Pulse</h1>
-
-  <button class="main-btn" id="selectBtn">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-    Select a post to save
-  </button>
-  <div class="hint">Click, then select the post on the page. <kbd>ESC</kbd> to cancel.</div>
-
+  <div class="info">
+    Look for the <strong>Save</strong> button next to each post's like/share buttons on X, Reddit, LinkedIn, YouTube, TikTok, and Instagram.
+  </div>
+  <button class="inject-btn" id="injectBtn">Activate Save buttons on this page</button>
   <div class="divider"></div>
   <div class="saved-info">
     <span id="savedCount">...</span>

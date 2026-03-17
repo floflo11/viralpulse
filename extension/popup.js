@@ -1,8 +1,8 @@
-const selectBtn = document.getElementById('selectBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const statusEl = document.getElementById('status');
 const savedCountEl = document.getElementById('savedCount');
 const libraryLink = document.getElementById('libraryLink');
+const injectBtn = document.getElementById('injectBtn');
 
 // Load API key
 chrome.storage.sync.get('apiKey', ({ apiKey }) => {
@@ -39,36 +39,19 @@ async function fetchSavedCount(apiKey) {
   } catch (e) { savedCountEl.textContent = ''; }
 }
 
-// Main action: activate post selector
-selectBtn.addEventListener('click', async () => {
-  const { apiKey } = await chrome.storage.sync.get('apiKey');
-  if (!apiKey) {
-    statusEl.textContent = 'Enter your API key first';
-    statusEl.style.color = '#dc2626';
-    apiKeyInput.parentElement.style.display = 'block';
-    apiKeyInput.focus();
-    return;
-  }
-
+// Manual inject button — forces content script onto current page
+injectBtn.addEventListener('click', async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    // Inject content script
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['content.js'],
     });
-
-    // Small delay for script to load
-    await new Promise(r => setTimeout(r, 200));
-
-    // Activate selector mode
-    await chrome.tabs.sendMessage(tab.id, { type: 'ACTIVATE_SELECTOR' });
-
-    // Close popup — user interacts with the page now
-    window.close();
+    injectBtn.textContent = 'Activated! Check the page.';
+    injectBtn.style.background = '#16a34a';
+    setTimeout(() => window.close(), 1500);
   } catch (e) {
-    statusEl.textContent = 'Cannot access this page';
-    statusEl.style.color = '#dc2626';
+    injectBtn.textContent = 'Cannot access this page';
+    injectBtn.style.background = '#dc2626';
   }
 });
