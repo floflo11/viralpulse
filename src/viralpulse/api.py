@@ -280,28 +280,12 @@ def _fmt_num(n: int) -> str:
 
 
 def _get_thumbnail(post_id: str, platform: str, url: str, media_url: str) -> str:
-    """Extract best thumbnail URL for a post."""
-    if media_url and media_url.startswith("http"):
-        return media_url
-    # For YouTube, construct from video ID
+    """Extract best thumbnail URL for a post. Only return URLs that won't hit login walls."""
+    # YouTube thumbnails always work publicly
     if platform == "youtube" and "watch?v=" in url:
         vid = url.split("watch?v=")[1].split("&")[0]
         return f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
-    # Try raw_data for thumbnails
-    try:
-        conn = get_conn()
-        row = conn.execute(
-            "SELECT raw_data->>'thumbnail_src' as t1, raw_data->>'thumbnail' as t2, raw_data->>'display_url' as t3 FROM posts WHERE id = %s",
-            (post_id,),
-        ).fetchone()
-        conn.close()
-        if row:
-            for key in ["t1", "t2", "t3"]:
-                val = row.get(key)
-                if val and val.startswith("http"):
-                    return val
-    except Exception:
-        pass
+    # Reddit/Instagram/TikTok CDN thumbnails often expire or require auth — skip them
     return ""
 
 
@@ -309,9 +293,14 @@ def _get_embed_html(platform: str, url: str) -> str:
     """Generate embed HTML for video/content platforms."""
     if platform == "youtube" and "watch?v=" in url:
         vid = url.split("watch?v=")[1].split("&")[0]
-        return f'<iframe width="100%" height="315" src="https://www.youtube.com/embed/{vid}" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="border-radius:8px;margin-bottom:12px;"></iframe>'
+        return f'<iframe width="100%" height="315" src="https://www.youtube.com/embed/{vid}" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="border-radius:8px;"></iframe>'
     if platform == "tiktok":
         return f'<blockquote class="tiktok-embed" cite="{url}" data-video-id="" style="max-width:100%;"><section></section></blockquote>'
+    if platform == "instagram" and "/reel/" in url:
+        shortcode = url.split("/reel/")[1].strip("/").split("/")[0].split("?")[0]
+        return f'<iframe src="https://www.instagram.com/reel/{shortcode}/embed/" width="100%" height="480" frameborder="0" scrolling="no" allowtransparency="true" style="border-radius:8px;background:#000;"></iframe>'
+    if platform == "reddit" and "reddit.com" in url:
+        return f'<a href="{url}" target="_blank" style="display:block;background:#1a1a2e;border:1px solid #2d2d44;border-radius:8px;padding:14px 16px;text-decoration:none;color:#d1d5db;font-size:13px;margin-bottom:4px;"><span style="color:#FF4500;font-weight:600;">r/</span> Open on Reddit &#x2197;</a>'
     return ""
 
 
@@ -377,9 +366,7 @@ def view_posts(
             has_tiktok = True
 
         media_html = ""
-        if embed and post.platform == "youtube":
-            media_html = f'<div style="margin-bottom:12px;">{embed}</div>'
-        elif embed and post.platform == "tiktok":
+        if embed:
             media_html = f'<div style="margin-bottom:12px;">{embed}</div>'
         elif thumb:
             media_html = f'<a href="{post.url}" target="_blank"><img src="{thumb}" alt="" style="width:100%;max-height:360px;object-fit:cover;border-radius:8px;margin-bottom:12px;" loading="lazy" onerror="this.style.display=\'none\'"></a>'
