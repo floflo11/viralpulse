@@ -27,7 +27,7 @@ def generate_api_key() -> str:
     num = random.randint(1, 99)
     adj = random.choice(ADJECTIVES)
     noun = random.choice(NOUNS)
-    return f"{num}-{adj}-{noun}"
+    return f"{num}_{adj}_{noun}"
 
 
 def get_user_by_key(api_key: str) -> Optional[dict]:

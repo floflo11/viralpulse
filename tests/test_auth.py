@@ -3,11 +3,14 @@ from viralpulse.auth import generate_api_key
 
 def test_generate_api_key_format():
     key = generate_api_key()
-    parts = key.split("-")
-    assert len(parts) == 3  # "42-swift-tiger"
+    parts = key.split("_")
+    assert len(parts) == 3  # "42_swift_tiger"
     assert parts[0].isdigit()
     assert parts[1].isalpha()
     assert parts[2].isalpha()
+    # Must be valid for Telegram deep links (alphanumeric + underscore only)
+    import re
+    assert re.match(r'^[A-Za-z0-9_]+$', key)
 
 
 def test_generate_api_key_readable():

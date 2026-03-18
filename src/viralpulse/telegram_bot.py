@@ -58,6 +58,7 @@ def link_user(telegram_id: int, api_key: str) -> bool:
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start vp_... command."""
     args = context.args
+    logger.info(f"/start from {update.effective_user.id} with args: {args}")
     if not args:
         await update.message.reply_text(
             "Welcome to Freedom!\n\n"
