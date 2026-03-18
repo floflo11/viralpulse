@@ -282,6 +282,10 @@ def main():
     status_p = sub.add_parser("status", help="Show status")
     status_p.set_defaults(func=cmd_status)
 
+    # telegram
+    tg_p = sub.add_parser("telegram", help="Start Telegram bot")
+    tg_p.set_defaults(func=lambda args: __import__('viralpulse.telegram_bot', fromlist=['run_bot']).run_bot())
+
     # serve
     serve_p = sub.add_parser("serve", help="Start API server")
     serve_p.add_argument("--host", default="0.0.0.0")

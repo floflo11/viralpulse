@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = ""
     aws_region: str = "us-east-1"
     s3_bucket: str = "viralpulse-screenshots"
+    telegram_bot_token: str = ""
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 

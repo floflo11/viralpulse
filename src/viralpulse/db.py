@@ -115,6 +115,12 @@ CREATE INDEX IF NOT EXISTS idx_saved_posts_platform ON saved_posts(user_id, plat
 ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
 ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS video_thumbnail TEXT;
 ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS video_url TEXT;
+
+CREATE TABLE IF NOT EXISTS telegram_users (
+    telegram_id BIGINT PRIMARY KEY,
+    api_key TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 """
 
 
