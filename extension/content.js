@@ -237,7 +237,6 @@ const EXTRACTORS = {
       return { author, content, engagement: {}, hashtags: extractHashtags(content), images, videoThumbnail: video?.poster || null, videoUrl: null, url: window.location.href };
     },
   },
-};
 
   'moltbook.com': {
     postSelector: '[data-post-id], .post-card, article',
@@ -252,6 +251,7 @@ const EXTRACTORS = {
       return { author, content, engagement: {}, hashtags: extractHashtags(content), images, videoThumbnail: null, videoUrl: null, url };
     },
   },
+};
 
 EXTRACTORS['twitter.com'] = EXTRACTORS['x.com'];
 
