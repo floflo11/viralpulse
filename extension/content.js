@@ -1,4 +1,4 @@
-// ViralPulse Content Script — Smart Extraction + Confirmation Card
+// Freedom Content Script — Smart Extraction + Confirmation Card
 // v2.0 — Structured data extraction, auto-expand, image capture
 
 if (window.__vpInjected) { /* already loaded */ } else {
@@ -266,7 +266,7 @@ function createVPButton(postEl) {
   btn.className = 'vp-save-btn';
   btn.setAttribute('data-vp', 'true');
   btn.innerHTML = `${VP_ICON}<span class="vp-label">Save</span>`;
-  btn.title = 'Save to ViralPulse';
+  btn.title = 'Save to Freedom';
   btn._vpPostEl = postEl;
   btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); handleSaveClick(btn, postEl); });
   return btn;
