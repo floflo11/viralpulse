@@ -2,10 +2,8 @@ const API_BASE = 'https://api.getfreedom.app';
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_API_KEY') {
-    chrome.storage.sync.get('apiKey', (result) => {
-      sendResponse({ apiKey: result?.apiKey || null });
-    });
-    return true; // async response
+    getApiKey().then(key => sendResponse({ apiKey: key }));
+    return true;
   }
   if (msg.type === 'SAVE_POST') {
     handleSave(msg, sender).then(sendResponse).catch(e => sendResponse({ error: e.message }));
@@ -13,9 +11,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
+async function getApiKey() {
+  try {
+    const result = await chrome.storage.sync.get('apiKey');
+    if (result?.apiKey) return result.apiKey;
+  } catch (e) { /* sync failed */ }
+  try {
+    const result = await chrome.storage.local.get('apiKey');
+    if (result?.apiKey) return result.apiKey;
+  } catch (e) { /* local failed */ }
+  return null;
+}
+
 async function handleSave({ metadata, userNote, tabId, url }, sender) {
-  const { apiKey } = await chrome.storage.sync.get('apiKey');
-  if (!apiKey) throw new Error('No API key set. Open the extension popup to set it.');
+  const apiKey = await getApiKey();
+  if (!apiKey) throw new Error('No API key set. Open the Freedom extension popup to set it.');
 
   // Get tab from sender (content script) or provided tabId
   const actualTabId = sender?.tab?.id || tabId;
@@ -25,20 +35,20 @@ async function handleSave({ metadata, userNote, tabId, url }, sender) {
     if (sender?.tab?.url) {
       url = sender.tab.url;
     } else if (actualTabId) {
-      const tab = await chrome.tabs.get(actualTabId);
-      url = tab.url;
+      try {
+        const tab = await chrome.tabs.get(actualTabId);
+        url = tab.url;
+      } catch (e) { /* ignore */ }
     }
   }
 
-  // Capture visible tab screenshot — may fail if no active tab gesture
+  // Capture visible tab screenshot
   let screenshot_base64 = null;
   try {
-    // captureVisibleTab needs activeTab permission granted by user gesture
     const windowId = sender?.tab?.windowId || null;
     screenshot_base64 = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   } catch (e) {
-    console.log('Screenshot capture failed (expected if no user gesture):', e.message);
-    // Still proceed — API will use VM fallback for screenshot
+    console.log('Screenshot capture failed:', e.message);
   }
 
   const resp = await fetch(`${API_BASE}/api/v1/save`, {
