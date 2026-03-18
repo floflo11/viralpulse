@@ -24,7 +24,7 @@ from viralpulse.platforms import ALL_PLATFORMS
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 app = FastAPI(
-    title="ViralPulse API",
+    title="Freedom API",
     description="Top viral social media posts for any topic. Built for AI agents.",
     version="0.1.0",
 )
@@ -122,7 +122,7 @@ def root():
     if not topic_rows:
         topic_rows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">No topics yet. Search above to add one.</td></tr>'
 
-    api_host = f"https://api.aithatjustworks.com"
+    api_host = f"https://api.getfreedom.app"
 
     html = (TEMPLATES_DIR / "landing.html").read_text()
     html = html.replace("{{TOPIC_ROWS}}", topic_rows)
@@ -157,7 +157,7 @@ def onboard(body: dict):
         "api_key": api_key,
         "name": name,
         "telegram_link": f"https://t.me/GetFreedomPostBot?start={api_key}",
-        "library_link": f"https://api.aithatjustworks.com/view/saved?key={api_key}",
+        "library_link": f"https://api.getfreedom.app/view/saved?key={api_key}",
         "extension_key": api_key,
     }
 
@@ -166,7 +166,7 @@ def onboard(body: dict):
 def get_skill():
     """Serve the viral-writer agent skill file."""
     from fastapi.responses import PlainTextResponse
-    api_host = "https://api.aithatjustworks.com"
+    api_host = "https://api.getfreedom.app"
     content = (TEMPLATES_DIR / "viral-writer.md").read_text()
     content = content.replace("{{API_HOST}}", api_host)
     return PlainTextResponse(content, media_type="text/markdown")
@@ -562,7 +562,7 @@ def view_posts(
     return f"""<!DOCTYPE html>
 <html>
 <head>
-  <title>{topic} — ViralPulse</title>
+  <title>{topic} — Freedom</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -788,7 +788,7 @@ def view_saved(
     return f"""<!DOCTYPE html>
 <html>
 <head>
-  <title>My Library — ViralPulse</title>
+  <title>My Library — Freedom</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -896,7 +896,7 @@ def view_profile(
     return f"""<!DOCTYPE html>
 <html>
 <head>
-  <title>@{handle_clean} — ViralPulse</title>
+  <title>@{handle_clean} — Freedom</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>

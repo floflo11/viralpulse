@@ -4,7 +4,7 @@
   "version": "1.3.0",
   "description": "Save any social media post to your Freedom library. Your AI agents use saved posts as references for creating viral content.",
   "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["https://api.aithatjustworks.com/*"],
+  "host_permissions": ["https://api.getfreedom.app/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

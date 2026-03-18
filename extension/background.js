@@ -1,4 +1,4 @@
-const API_BASE = 'https://api.aithatjustworks.com';
+const API_BASE = 'https://api.getfreedom.app';
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'SAVE_POST') {

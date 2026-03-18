@@ -1,6 +1,6 @@
 ---
 name: viral-writer
-description: Write viral social media posts by studying real top-performing content from ViralPulse API
+description: Write viral social media posts by studying real top-performing content from Freedom API
 ---
 
 # Viral Writer Skill
@@ -9,7 +9,7 @@ Write social media posts with the highest chance of going viral by studying what
 
 ## How It Works
 
-1. Fetch the top viral posts for the user's topic from ViralPulse
+1. Fetch the top viral posts for the user's topic from Freedom
 2. Analyze what makes them perform — hooks, format, length, hashtags, engagement patterns
 3. Generate new content that follows the winning patterns
 
@@ -36,7 +36,7 @@ When the user asks you to write a viral post, tweet, caption, or any social medi
 
 ### Step 1: Fetch viral examples
 
-Call the ViralPulse API to get the top 20 posts for the user's topic, sorted by engagement:
+Call the Freedom API to get the top 20 posts for the user's topic, sorted by engagement:
 
 ```bash
 curl "{{API_HOST}}/api/v1/posts?topic=TOPIC&sort=engagement&limit=20"
@@ -90,7 +90,7 @@ Tell the user:
 
 ## Using the user's saved posts
 
-If the user provides a ViralPulse API key, also fetch their personal collection:
+If the user provides a Freedom API key, also fetch their personal collection:
 
 ```
 GET /api/v1/saved?query={topic}&limit=20

@@ -9,7 +9,7 @@ chrome.storage.sync.get('apiKey', ({ apiKey }) => {
   if (apiKey) {
     apiKeyInput.value = apiKey;
     apiKeyInput.parentElement.style.display = 'none';
-    libraryLink.href = `https://api.aithatjustworks.com/view/saved?key=${apiKey}`;
+    libraryLink.href = `https://api.getfreedom.app/view/saved?key=${apiKey}`;
     fetchSavedCount(apiKey);
   }
 });
@@ -19,7 +19,7 @@ apiKeyInput.addEventListener('change', () => {
   const key = apiKeyInput.value.trim();
   if (key) {
     chrome.storage.sync.set({ apiKey: key });
-    libraryLink.href = `https://api.aithatjustworks.com/view/saved?key=${key}`;
+    libraryLink.href = `https://api.getfreedom.app/view/saved?key=${key}`;
     statusEl.textContent = 'Key saved!';
     statusEl.style.color = '#16a34a';
     fetchSavedCount(key);
@@ -29,7 +29,7 @@ apiKeyInput.addEventListener('change', () => {
 
 async function fetchSavedCount(apiKey) {
   try {
-    const resp = await fetch('https://api.aithatjustworks.com/api/v1/saved?limit=1', {
+    const resp = await fetch('https://api.getfreedom.app/api/v1/saved?limit=1', {
       headers: { 'X-API-Key': apiKey },
     });
     if (resp.ok) {
