@@ -19,6 +19,7 @@ apiKeyInput.addEventListener('change', () => {
   const key = apiKeyInput.value.trim();
   if (key) {
     chrome.storage.sync.set({ apiKey: key });
+    chrome.storage.local.set({ apiKey: key }); // backup
     libraryLink.href = `https://api.getfreedom.app/view/saved?key=${key}`;
     statusEl.textContent = 'Key saved!';
     statusEl.style.color = '#16a34a';

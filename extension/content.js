@@ -309,10 +309,20 @@ function injectFloatingButton() {
 async function handleSaveClick(btn, postEl) {
   console.log('[VP] Save clicked');
   try {
-  const result = await chrome.storage.sync.get('apiKey');
-  console.log('[VP] API key result:', result);
-  const apiKey = result.apiKey;
-  if (!apiKey) { showToast('Set your API key in the ViralPulse extension popup', 'error'); return; }
+  let apiKey = null;
+  try {
+    const result = await chrome.storage.sync.get('apiKey');
+    apiKey = result?.apiKey;
+    console.log('[VP] API key from storage:', apiKey ? 'found' : 'not set');
+  } catch (storageErr) {
+    console.log('[VP] chrome.storage.sync error:', storageErr.message);
+    // Try local storage as fallback
+    try {
+      const localResult = await chrome.storage.local.get('apiKey');
+      apiKey = localResult?.apiKey;
+    } catch (e) { /* ignore */ }
+  }
+  if (!apiKey) { showToast('Set your key in the Freedom extension popup', 'error'); return; }
 
   const label = btn.querySelector('.vp-label');
   const currentExt = ext;
