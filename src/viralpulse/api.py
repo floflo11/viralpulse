@@ -132,6 +132,36 @@ def root():
     return html
 
 
+@app.get("/get-started", include_in_schema=False, response_class=HTMLResponse)
+def get_started():
+    """Onboarding page — create account + setup all channels."""
+    return (TEMPLATES_DIR / "onboarding.html").read_text()
+
+
+@app.post("/api/v1/onboard", include_in_schema=False)
+def onboard(body: dict):
+    """Create a user and return onboarding links."""
+    if not settings.database_url:
+        raise HTTPException(500, "No database configured")
+    name = body.get("name", "")
+    email = body.get("email")
+    api_key = generate_api_key()
+    conn = get_conn()
+    row = conn.execute(
+        "INSERT INTO users (api_key, name, email) VALUES (%s, %s, %s) RETURNING *",
+        (api_key, name, email),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return {
+        "api_key": api_key,
+        "name": name,
+        "telegram_link": f"https://t.me/GetFreedomPostBot?start={api_key}",
+        "library_link": f"https://api.aithatjustworks.com/view/saved?key={api_key}",
+        "extension_key": api_key,
+    }
+
+
 @app.get("/skill/viral-writer.md", include_in_schema=False)
 def get_skill():
     """Serve the viral-writer agent skill file."""

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get Started — Freedom</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#fafaf9; --surface:#fff; --border:#e7e5e4; --text:#1c1917; --text2:#57534e; --text3:#78716c; --muted:#a8a29e; --accent:#dc2626; --green:#16a34a; --blue:#2563eb; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:'Outfit',system-ui,sans-serif; -webkit-font-smoothing:antialiased; min-height:100vh; }
+    .container { max-width:640px; margin:0 auto; padding:48px 24px; }
+
+    h1 { font-family:'Instrument Serif',Georgia,serif; font-size:2.4rem; font-weight:400; margin-bottom:8px; }
+    h1 em { font-style:italic; }
+    .subtitle { font-size:16px; color:var(--text2); line-height:1.6; margin-bottom:36px; }
+
+    /* Step 1: Create account */
+    .step { margin-bottom:32px; }
+    .step-label { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:10px; }
+    .step-title { font-size:18px; font-weight:600; margin-bottom:12px; }
+
+    .form-row { display:flex; gap:8px; margin-bottom:12px; }
+    .form-row input { flex:1; border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:14px; font-family:inherit; }
+    .form-row input:focus { outline:none; border-color:var(--accent); }
+    .create-btn { width:100%; padding:12px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; background:var(--text); color:#fff; transition:background 0.15s; }
+    .create-btn:hover { background:#292524; }
+    .create-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    /* Key display */
+    .key-display { display:none; margin-top:20px; }
+    .key-display.show { display:block; animation:fadeIn 0.3s ease; }
+    .key-box { background:var(--text); border-radius:12px; padding:20px; text-align:center; margin-bottom:24px; }
+    .key-box .label { font-size:12px; color:#a8a29e; margin-bottom:8px; }
+    .key-box .key { font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:500; color:#fff; letter-spacing:1px; }
+    .key-box .copy-hint { font-size:12px; color:#78716c; margin-top:8px; cursor:pointer; }
+    .key-box .copy-hint:hover { color:#fff; }
+
+    /* Setup cards */
+    .channels { display:flex; flex-direction:column; gap:14px; }
+    .channel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; display:flex; align-items:center; gap:16px; transition:border-color 0.15s, box-shadow 0.15s; text-decoration:none; color:var(--text); }
+    .channel:hover { border-color:#d6d3d1; box-shadow:0 2px 12px rgba(0,0,0,0.04); }
+    .channel-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .channel-info { flex:1; }
+    .channel-name { font-size:15px; font-weight:600; margin-bottom:2px; }
+    .channel-desc { font-size:13px; color:var(--text3); }
+    .channel-action { font-size:13px; font-weight:600; color:var(--blue); white-space:nowrap; }
+    .channel-check { display:none; color:var(--green); font-size:18px; }
+
+    .done-msg { text-align:center; padding:24px 0; font-size:15px; color:var(--text2); display:none; }
+    .done-msg.show { display:block; }
+    .done-msg a { color:var(--blue); text-decoration:none; font-weight:500; }
+
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .copied { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--text); color:#fff; padding:10px 20px; border-radius:8px; font-size:14px; display:none; z-index:100; }
+    .copied.show { display:block; animation:fadeIn 0.2s ease; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Get started with <em>Freedom</em></h1>
+    <p class="subtitle">Save viral posts from any platform. Your AI agents use them as references to create content that performs.</p>
+
+    <!-- Step 1: Create Account -->
+    <div class="step" id="createStep">
+      <div class="step-label">Step 1</div>
+      <div class="step-title">Create your account</div>
+      <div class="form-row">
+        <input type="text" id="nameInput" placeholder="Your name">
+        <input type="email" id="emailInput" placeholder="Email (optional)">
+      </div>
+      <button class="create-btn" id="createBtn" onclick="createAccount()">Create account</button>
+    </div>
+
+    <!-- Key + Setup (hidden until account created) -->
+    <div class="key-display" id="keyDisplay">
+      <div class="key-box">
+        <div class="label">Your key</div>
+        <div class="key" id="keyValue"></div>
+        <div class="copy-hint" onclick="copyKey()">Click to copy</div>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Step 2</div>
+        <div class="step-title">Set up your save channels</div>
+      </div>
+
+      <div class="channels">
+        <!-- Telegram -->
+        <a class="channel" id="telegramCard" href="#" target="_blank">
+          <div class="channel-icon" style="background:#e3f2fd;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#2196F3"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          </div>
+          <div class="channel-info">
+            <div class="channel-name">Telegram Bot</div>
+            <div class="channel-desc">Save posts from your phone — just share any link</div>
+          </div>
+          <span class="channel-action">Connect &rarr;</span>
+        </a>
+
+        <!-- Chrome Extension -->
+        <a class="channel" href="https://github.com/floflo11/viralpulse/tree/main/extension" target="_blank">
+          <div class="channel-icon" style="background:#fef3c7;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          </div>
+          <div class="channel-info">
+            <div class="channel-name">Chrome Extension</div>
+            <div class="channel-desc">Save button appears on every post while browsing</div>
+          </div>
+          <span class="channel-action">Download &rarr;</span>
+        </a>
+
+        <!-- Agent Skill -->
+        <a class="channel" id="skillCard" href="/skill/viral-writer.md" target="_blank">
+          <div class="channel-icon" style="background:#f3e8ff;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div class="channel-info">
+            <div class="channel-name">Agent Skill</div>
+            <div class="channel-desc">Give your AI agent the viral-writer skill file</div>
+          </div>
+          <span class="channel-action">Download &rarr;</span>
+        </a>
+
+        <!-- Library -->
+        <a class="channel" id="libraryCard" href="#" target="_blank">
+          <div class="channel-icon" style="background:#dcfce7;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          </div>
+          <div class="channel-info">
+            <div class="channel-name">Your Library</div>
+            <div class="channel-desc">View all your saved posts in one place</div>
+          </div>
+          <span class="channel-action">Open &rarr;</span>
+        </a>
+      </div>
+
+      <div class="done-msg" id="doneMsg">
+        All set! Start saving posts from <a href="/">the dashboard</a> or share links to your Telegram bot.
+      </div>
+    </div>
+  </div>
+
+  <div class="copied" id="copiedToast">Copied to clipboard</div>
+
+  <script>
+    let currentKey = '';
+
+    async function createAccount() {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) { document.getElementById('nameInput').focus(); return; }
+
+      const btn = document.getElementById('createBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      try {
+        const resp = await fetch('/api/v1/onboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            email: document.getElementById('emailInput').value.trim() || null,
+          }),
+        });
+        const data = await resp.json();
+        currentKey = data.api_key;
+
+        // Show key + channels
+        document.getElementById('keyValue').textContent = currentKey;
+        document.getElementById('telegramCard').href = data.telegram_link;
+        document.getElementById('libraryCard').href = data.library_link;
+        document.getElementById('keyDisplay').classList.add('show');
+        document.getElementById('createStep').style.display = 'none';
+        document.getElementById('doneMsg').classList.add('show');
+
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Create account';
+        alert('Failed: ' + e.message);
+      }
+    }
+
+    function copyKey() {
+      navigator.clipboard.writeText(currentKey).then(() => {
+        const toast = document.getElementById('copiedToast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    }
+  </script>
+</body>
+</html>
