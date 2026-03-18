@@ -1,13 +1,33 @@
 """API key generation and user authentication."""
 
-import secrets
+import random
 from typing import Optional
 from viralpulse.db import get_conn
 
+# Wormhole-style word lists — easy to type, easy to remember
+ADJECTIVES = [
+    "swift", "bold", "calm", "deep", "fast", "gold", "keen", "pure", "warm", "wise",
+    "blue", "cool", "dark", "free", "glad", "high", "iron", "just", "kind", "live",
+    "mild", "open", "rare", "safe", "true", "vast", "wild", "zen", "epic", "fair",
+    "pink", "red", "mint", "jade", "ruby", "sage", "onyx", "coal", "ice", "sun",
+    "dawn", "dusk", "moon", "star", "rain", "snow", "wind", "fire", "wave", "leaf",
+]
+
+NOUNS = [
+    "tiger", "eagle", "whale", "fox", "hawk", "lion", "wolf", "bear", "deer", "dove",
+    "oak", "pine", "fern", "moss", "vine", "palm", "reed", "lily", "rose", "iris",
+    "river", "ocean", "storm", "cloud", "flame", "stone", "steel", "glass", "pearl", "coral",
+    "piano", "cello", "drum", "flute", "harp", "bell", "song", "echo", "pulse", "beat",
+    "atlas", "spark", "orbit", "prism", "nexus", "forge", "vault", "tower", "bridge", "arrow",
+]
+
 
 def generate_api_key() -> str:
-    """Generate a unique API key with vp_ prefix."""
-    return f"vp_{secrets.token_urlsafe(18)}"
+    """Generate a memorable API key like '42-swift-tiger'."""
+    num = random.randint(1, 99)
+    adj = random.choice(ADJECTIVES)
+    noun = random.choice(NOUNS)
+    return f"{num}-{adj}-{noun}"
 
 
 def get_user_by_key(api_key: str) -> Optional[dict]:

@@ -58,16 +58,17 @@ def link_user(telegram_id: int, api_key: str) -> bool:
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start vp_... command."""
     args = context.args
-    if not args or not args[0].startswith("vp_"):
+    if not args:
         await update.message.reply_text(
-            "Welcome to ViralPulse!\n\n"
-            "To get started, send:\n"
-            "/start vp_YOUR_API_KEY\n\n"
-            "Get your API key at https://api.aithatjustworks.com"
+            "Welcome to Freedom!\n\n"
+            "To connect, send your key:\n"
+            "/start 42-swift-tiger\n\n"
+            "Get your key at https://api.aithatjustworks.com"
         )
         return
 
-    api_key = args[0]
+    # Support both old (vp_...) and new (42-word-word) format
+    api_key = " ".join(args)  # Handle spaces in case key was split
     if link_user(update.effective_user.id, api_key):
         await update.message.reply_text(
             "Connected! ✓\n\n"
