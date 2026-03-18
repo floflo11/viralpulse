@@ -94,17 +94,61 @@ async def cmd_library(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def cmd_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /projects command — list or create projects."""
+    api_key = get_api_key(update.effective_user.id)
+    if not api_key:
+        await update.message.reply_text("Not connected yet. Send /start YOUR_KEY first.")
+        return
+
+    args = context.args
+    if args:
+        # Create a new project
+        name = " ".join(args)
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{API_BASE}/api/v1/projects",
+                json={"name": name, "keywords": name.lower().split()},
+                headers={"X-API-Key": api_key},
+            )
+        if resp.status_code == 200:
+            await update.message.reply_text(f"Project created: {name}\n\nTag posts with #{name} when sharing links.")
+        else:
+            await update.message.reply_text("Failed to create project.")
+        return
+
+    # List projects
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{API_BASE}/api/v1/projects",
+            headers={"X-API-Key": api_key},
+        )
+    if resp.status_code == 200:
+        projects = resp.json().get("projects", [])
+        if not projects:
+            await update.message.reply_text("No projects yet.\n\nCreate one: /projects Excel AI\nThen tag saves: https://... #Excel AI")
+            return
+        lines = ["Your projects:\n"]
+        for p in projects:
+            lines.append(f"• {p['name']} ({p.get('post_count', 0)} posts)")
+        lines.append("\nTag posts: share a URL with #ProjectName")
+        await update.message.reply_text("\n".join(lines))
+
+
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
     await update.message.reply_text(
-        "ViralPulse Bot\n\n"
+        "Freedom Bot\n\n"
         "Commands:\n"
-        "/start vp_KEY — Connect your account\n"
-        "/library — View your saved posts\n"
+        "/start KEY — Connect your account\n"
+        "/projects — List your projects\n"
+        "/projects Excel AI — Create a new project\n"
+        "/library — View saved posts\n"
         "/help — Show this message\n\n"
         "Usage:\n"
-        "Just send me any URL and I'll save it to your library.\n"
-        "Your AI agent can then use these posts as references for creating viral content."
+        "Share any URL to save it.\n"
+        "Add #ProjectName to tag it: https://... #Excel AI\n"
+        "Posts are auto-classified if they match a project's keywords."
     )
 
 
@@ -142,17 +186,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Call the save API
         try:
-            # Extract any note from the message (text before/after the URL)
+            # Extract note and project from message (text before/after URL)
             note_text = text.replace(url, "").strip()
+            # Check for #project tag
+            project_match = re.search(r'#(\w[\w\s]*?)(?:\s|$)', note_text)
+            project_name = project_match.group(1).strip() if project_match else None
+            if project_match:
+                note_text = note_text.replace(project_match.group(0), "").strip()
 
             async with httpx.AsyncClient(timeout=60) as client:
+                save_body = {
+                    "url": url,
+                    "metadata": {"content": "", "author": ""},
+                    "user_note": note_text if note_text else None,
+                }
+                if project_name:
+                    save_body["project"] = project_name
                 resp = await client.post(
                     f"{API_BASE}/api/v1/save",
-                    json={
-                        "url": url,
-                        "metadata": {"content": "", "author": ""},
-                        "user_note": note_text if note_text else None,
-                    },
+                    json=save_body,
                     headers={"X-API-Key": api_key},
                 )
 
@@ -200,6 +252,7 @@ def run_bot():
 
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("projects", cmd_projects))
     app.add_handler(CommandHandler("library", cmd_library))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

@@ -116,6 +116,20 @@ ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
 ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS video_thumbnail TEXT;
 ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS video_url TEXT;
 
+CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    keywords JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
+
+ALTER TABLE saved_posts ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS telegram_users (
     telegram_id BIGINT PRIMARY KEY,
     api_key TEXT NOT NULL,

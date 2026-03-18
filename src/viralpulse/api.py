@@ -937,6 +937,82 @@ def create_user(body: dict):
     return dict(row)
 
 
+@app.get("/api/v1/projects")
+def list_projects(user: dict = Depends(_get_user)):
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT p.*, COUNT(sp.id) as post_count
+           FROM projects p LEFT JOIN saved_posts sp ON sp.project_id = p.id
+           WHERE p.user_id = %s GROUP BY p.id ORDER BY p.name""",
+        (str(user["id"]),),
+    ).fetchall()
+    conn.close()
+    return {"projects": [dict(r) for r in rows]}
+
+
+@app.post("/api/v1/projects")
+def create_project(body: dict, user: dict = Depends(_get_user)):
+    name = body.get("name", "").strip()
+    if not name:
+        raise HTTPException(400, "name is required")
+    description = body.get("description", "")
+    keywords = body.get("keywords", [])
+    conn = get_conn()
+    row = conn.execute(
+        """INSERT INTO projects (user_id, name, description, keywords)
+           VALUES (%s, %s, %s, %s)
+           ON CONFLICT (user_id, name) DO UPDATE SET
+               description = EXCLUDED.description, keywords = EXCLUDED.keywords
+           RETURNING *""",
+        (str(user["id"]), name, description, json.dumps(keywords)),
+    ).fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row)
+
+
+def _auto_classify_project(user_id: str, content: str) -> Optional[str]:
+    """Auto-classify a saved post into a project based on keywords."""
+    if not content:
+        return None
+    conn = get_conn()
+    projects = conn.execute(
+        "SELECT id, name, description, keywords FROM projects WHERE user_id = %s",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+
+    if not projects:
+        return None
+
+    content_lower = content.lower()
+    best_match = None
+    best_score = 0
+
+    for p in projects:
+        score = 0
+        # Match project name
+        if p["name"].lower() in content_lower:
+            score += 3
+        # Match keywords
+        keywords = p.get("keywords") or []
+        if isinstance(keywords, str):
+            keywords = json.loads(keywords)
+        for kw in keywords:
+            if kw.lower() in content_lower:
+                score += 2
+        # Match description words
+        if p.get("description"):
+            for word in p["description"].lower().split():
+                if len(word) > 3 and word in content_lower:
+                    score += 1
+        if score > best_score:
+            best_score = score
+            best_match = str(p["id"])
+
+    return best_match if best_score >= 2 else None
+
+
 @app.post("/api/v1/save")
 def save_post(body: dict, user: dict = Depends(_get_user)):
     if not settings.database_url:
@@ -950,23 +1026,42 @@ def save_post(body: dict, user: dict = Depends(_get_user)):
     screenshot_b64 = body.get("screenshot_base64")
     metadata = body.get("metadata", {})
     user_note = body.get("user_note")
+    project_id = body.get("project_id")  # optional — user can tag with a project
+    project_name = body.get("project")   # or pass project name to auto-resolve
     source = "extension" if screenshot_b64 else "api"
     status = "enriched" if screenshot_b64 else "pending"
+
+    # Resolve project by name if given
+    if project_name and not project_id:
+        conn = get_conn()
+        proj = conn.execute(
+            "SELECT id FROM projects WHERE user_id = %s AND name ILIKE %s",
+            (str(user["id"]), project_name),
+        ).fetchone()
+        if proj:
+            project_id = str(proj["id"])
+        conn.close()
+
+    # Auto-classify if no project specified
+    content_text = metadata.get("content", "")
+    if not project_id and content_text:
+        project_id = _auto_classify_project(str(user["id"]), content_text)
 
     conn = get_conn()
     row = conn.execute(
         """INSERT INTO saved_posts (user_id, url, platform, author, content, engagement, hashtags,
-           published_at, user_note, source, status)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+           published_at, user_note, source, status, project_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (user_id, url) DO UPDATE SET
                user_note = COALESCE(EXCLUDED.user_note, saved_posts.user_note),
+               project_id = COALESCE(EXCLUDED.project_id, saved_posts.project_id),
                status = EXCLUDED.status
            RETURNING *""",
         (str(user["id"]), url, platform,
-         metadata.get("author", ""), metadata.get("content", ""),
+         metadata.get("author", ""), content_text,
          json.dumps(metadata.get("engagement")) if metadata.get("engagement") else None,
          json.dumps(metadata.get("hashtags", [])),
-         metadata.get("published_at"), user_note, source, status),
+         metadata.get("published_at"), user_note, source, status, project_id),
     ).fetchone()
     conn.commit()
     post_id = str(row["id"])
@@ -1054,22 +1149,29 @@ def save_post(body: dict, user: dict = Depends(_get_user)):
 def get_saved(
     query: str = Query(None),
     platform: str = Query(None),
+    project: str = Query(None, description="Filter by project name"),
     limit: int = Query(20, ge=1, le=100),
     user: dict = Depends(_get_user),
 ):
     conn = get_conn()
-    sql = "SELECT * FROM saved_posts WHERE user_id = %s"
+    sql = """SELECT sp.*, pr.name as project_name
+             FROM saved_posts sp
+             LEFT JOIN projects pr ON pr.id = sp.project_id
+             WHERE sp.user_id = %s"""
     params = [str(user["id"])]
 
     if platform:
-        sql += " AND platform = %s"
+        sql += " AND sp.platform = %s"
         params.append(platform)
+    if project:
+        sql += " AND pr.name ILIKE %s"
+        params.append(f"%{project}%")
     if query:
-        sql += " AND (content ILIKE %s OR author ILIKE %s OR user_note ILIKE %s)"
+        sql += " AND (sp.content ILIKE %s OR sp.author ILIKE %s OR sp.user_note ILIKE %s)"
         q = f"%{query}%"
         params.extend([q, q, q])
 
-    sql += " ORDER BY created_at DESC LIMIT %s"
+    sql += " ORDER BY sp.created_at DESC LIMIT %s"
     params.append(limit)
 
     rows = conn.execute(sql, params).fetchall()
