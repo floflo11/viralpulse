@@ -12,6 +12,7 @@ PLATFORM_MAP = {
     "youtube.com": "youtube",
     "youtu.be": "youtube",
     "linkedin.com": "linkedin",
+    "moltbook.com": "moltbook",
 }
 
 

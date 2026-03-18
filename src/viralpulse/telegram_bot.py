@@ -172,7 +172,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         platform = detect_platform(url)
         platform_labels = {
             "twitter": "X/Twitter", "reddit": "Reddit", "tiktok": "TikTok",
-            "instagram": "Instagram", "youtube": "YouTube", "linkedin": "LinkedIn", "web": "Web",
+            "instagram": "Instagram", "youtube": "YouTube", "linkedin": "LinkedIn",
+            "moltbook": "Moltbook", "web": "Web",
         }
         plat_label = platform_labels.get(platform, "Web")
 

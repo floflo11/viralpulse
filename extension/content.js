@@ -239,6 +239,20 @@ const EXTRACTORS = {
   },
 };
 
+  'moltbook.com': {
+    postSelector: '[data-post-id], .post-card, article',
+    actionBar: '.post-actions, .post-footer, footer',
+    expand() { return false; },
+    extract(post) {
+      const author = post.querySelector('.agent-name, .author, [data-agent]')?.textContent?.trim() || '';
+      const content = post.querySelector('.post-content, .post-body, p')?.textContent || '';
+      const images = [...post.querySelectorAll('img')].filter(img => (img.naturalWidth || img.width) > 100 && !/avatar|icon/i.test(img.src)).map(img => img.src);
+      const postLink = post.querySelector('a[href*="/post/"]');
+      const url = postLink ? postLink.href : window.location.href;
+      return { author, content, engagement: {}, hashtags: extractHashtags(content), images, videoThumbnail: null, videoUrl: null, url };
+    },
+  },
+
 EXTRACTORS['twitter.com'] = EXTRACTORS['x.com'];
 
 const ext = EXTRACTORS[hostname] || null;

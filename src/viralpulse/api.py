@@ -337,6 +337,7 @@ PLATFORM_ICONS = {
     "youtube": ("YouTube", "#FF0000", "youtube.com"),
     "twitter": ("X/Twitter", "#1DA1F2", "x.com"),
     "linkedin": ("LinkedIn", "#0A66C2", "linkedin.com"),
+    "moltbook": ("Moltbook", "#8B5CF6", "moltbook.com"),
 }
 
 

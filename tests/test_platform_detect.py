@@ -27,6 +27,11 @@ def test_linkedin():
     assert detect_platform("https://www.linkedin.com/posts/user-123") == "linkedin"
 
 
+def test_moltbook():
+    assert detect_platform("https://www.moltbook.com/post/34809c74-eed2-48d0-b371-e1b5b940d409") == "moltbook"
+    assert detect_platform("https://moltbook.com/m/general") == "moltbook"
+
+
 def test_generic():
     assert detect_platform("https://techcrunch.com/2026/03/article") == "web"
     assert detect_platform("https://substack.com/p/something") == "web"
