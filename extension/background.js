@@ -1,6 +1,12 @@
 const API_BASE = 'https://api.getfreedom.app';
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'GET_API_KEY') {
+    chrome.storage.sync.get('apiKey', (result) => {
+      sendResponse({ apiKey: result?.apiKey || null });
+    });
+    return true; // async response
+  }
   if (msg.type === 'SAVE_POST') {
     handleSave(msg, sender).then(sendResponse).catch(e => sendResponse({ error: e.message }));
     return true;

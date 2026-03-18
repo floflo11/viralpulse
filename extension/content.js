@@ -309,18 +309,14 @@ function injectFloatingButton() {
 async function handleSaveClick(btn, postEl) {
   console.log('[VP] Save clicked');
   try {
+  // Get API key from background script (chrome.storage not available in all content script contexts)
   let apiKey = null;
   try {
-    const result = await chrome.storage.sync.get('apiKey');
-    apiKey = result?.apiKey;
-    console.log('[VP] API key from storage:', apiKey ? 'found' : 'not set');
-  } catch (storageErr) {
-    console.log('[VP] chrome.storage.sync error:', storageErr.message);
-    // Try local storage as fallback
-    try {
-      const localResult = await chrome.storage.local.get('apiKey');
-      apiKey = localResult?.apiKey;
-    } catch (e) { /* ignore */ }
+    const keyResult = await chrome.runtime.sendMessage({ type: 'GET_API_KEY' });
+    apiKey = keyResult?.apiKey;
+    console.log('[VP] API key from background:', apiKey ? 'found' : 'not set');
+  } catch (e) {
+    console.log('[VP] Failed to get API key:', e.message);
   }
   if (!apiKey) { showToast('Set your key in the Freedom extension popup', 'error'); return; }
 
