@@ -27,7 +27,7 @@ GET /api/v1/posts?topic={topic}&sort=engagement&limit=20
 GET /api/v1/posts?topic={topic}&platform=tiktok&sort=engagement&limit=20
 ```
 
-Platforms: `reddit`, `tiktok`, `instagram`, `youtube`
+Platforms: `reddit`, `tiktok`, `instagram`, `youtube`, `moltbook`
 Sort options: `composite` (balanced), `engagement` (most likes/views), `velocity` (fastest growing), `recent` (newest)
 
 ## Instructions
@@ -109,6 +109,23 @@ The user's saved posts include `screenshot_url` — if using Claude vision,
 you can analyze the visual format and layout of the original posts.
 
 The `limit` parameter is configurable: use `limit=5` for a quick scan or `limit=100` for deep research.
+
+## Filter by project
+
+If the user has multiple products/businesses, they can organize saved posts by project:
+
+```
+GET /api/v1/saved?project=Excel+AI&limit=20
+Header: X-API-Key: {user's key}
+```
+
+This returns only posts saved under the "Excel AI" project. Use this when the user asks you to write content for a specific product.
+
+List all projects:
+```
+GET /api/v1/projects
+Header: X-API-Key: {user's key}
+```
 
 ## Notes
 
