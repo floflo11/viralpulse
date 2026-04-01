@@ -4,6 +4,88 @@ Freedom crawls social media platforms daily, scores every post by real engagemen
 
 **Live:** [api.aithatjustworks.com](https://api.aithatjustworks.com)
 
+![Freedom landing page](docs/landing-page.png)
+
+## Try it now
+
+No signup, no API key. Paste this into your terminal:
+
+```bash
+curl -s "https://api.aithatjustworks.com/api/v1/posts?topic=Claude+Code&sort=engagement&limit=3" | python3 -m json.tool
+```
+
+Or browse the live dashboard: [api.aithatjustworks.com](https://api.aithatjustworks.com)
+
+<details>
+<summary>Example response</summary>
+
+```json
+{
+  "topic": "Claude Code",
+  "platform": "all",
+  "sort": "engagement",
+  "count": 3,
+  "posts": [
+    {
+      "platform": "tiktok",
+      "url": "https://www.tiktok.com/@gregisenberg/video/7603792256948030751",
+      "author": "@gregisenberg",
+      "content": "Claude code crash course in 1 min",
+      "engagement": {
+        "likes": 55501,
+        "comments": 129,
+        "shares": 4848,
+        "views": 592073
+      },
+      "scores": {
+        "composite": 0.82,
+        "relevance": 1.0,
+        "engagement_normalized": 1.0,
+        "velocity": 0.40
+      }
+    },
+    {
+      "platform": "tiktok",
+      "url": "https://www.tiktok.com/@rpn/video/7616113742270549278",
+      "author": "@rpn",
+      "content": "Everybody's talking about Claude Code but I'm surprised at how little people are using Claude Skills...",
+      "engagement": {
+        "likes": 19317,
+        "comments": 82,
+        "shares": 2186,
+        "views": 267790
+      },
+      "scores": {
+        "composite": 0.73,
+        "relevance": 1.0,
+        "engagement_normalized": 0.36,
+        "velocity": 0.96
+      }
+    },
+    {
+      "platform": "reddit",
+      "url": "https://www.reddit.com/r/technology/comments/1rng7sr/...",
+      "author": "gdelacalle",
+      "title": "Claude Code deletes developers' production setup, including its database and snapshots",
+      "engagement": {
+        "likes": 17552,
+        "comments": 1448,
+        "shares": 0,
+        "views": 0
+      },
+      "scores": {
+        "composite": 0.57,
+        "relevance": 1.0,
+        "engagement_normalized": 0.31,
+        "velocity": 0.49
+      }
+    }
+  ]
+}
+```
+
+</details>
+
 ## How it works
 
 1. **Crawl** — A daily cron fetches top posts per topic from Reddit, TikTok, Instagram, YouTube, and Moltbook via ScrapeCreators
