@@ -1,4 +1,4 @@
-const API_BASE = 'https://api.getfreedom.app';
+const API_BASE = 'https://api.aithatjustworks.com';
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_API_KEY') {

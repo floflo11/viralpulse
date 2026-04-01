@@ -15,7 +15,7 @@ from viralpulse.platform_detect import detect_platform
 
 logger = logging.getLogger("viralpulse.telegram")
 
-API_BASE = "https://api.getfreedom.app"
+API_BASE = "https://api.aithatjustworks.com"
 
 URL_REGEX = re.compile(r'https?://\S+')
 
@@ -64,7 +64,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Welcome to Freedom!\n\n"
             "To connect, send your key:\n"
             "/start 42-swift-tiger\n\n"
-            "Get your key at https://api.getfreedom.app"
+            "Get your key at https://api.aithatjustworks.com"
         )
         return
 
@@ -79,7 +79,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             "Invalid API key. Please check your key and try again.\n"
-            "Get your key at https://api.getfreedom.app"
+            "Get your key at https://api.aithatjustworks.com"
         )
 
 
@@ -91,7 +91,7 @@ async def cmd_library(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        f"Your library:\nhttps://api.getfreedom.app/view/saved?key={api_key}"
+        f"Your library:\nhttps://api.aithatjustworks.com/view/saved?key={api_key}"
     )
 
 

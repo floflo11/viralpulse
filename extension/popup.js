@@ -4,7 +4,7 @@ const savedCountEl = document.getElementById('savedCount');
 const libraryLink = document.getElementById('libraryLink');
 const injectBtn = document.getElementById('injectBtn');
 
-const API_BASE = 'https://api.getfreedom.app';
+const API_BASE = 'https://api.aithatjustworks.com';
 
 // Load API key — try sync first, fall back to local
 async function loadApiKey() {

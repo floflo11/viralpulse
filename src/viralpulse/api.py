@@ -122,7 +122,7 @@ def root():
     if not topic_rows:
         topic_rows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">No topics yet. Search above to add one.</td></tr>'
 
-    api_host = f"https://api.getfreedom.app"
+    api_host = f"https://api.aithatjustworks.com"
 
     html = (TEMPLATES_DIR / "landing.html").read_text()
     html = html.replace("{{TOPIC_ROWS}}", topic_rows)
@@ -157,7 +157,7 @@ def onboard(body: dict):
         "api_key": api_key,
         "name": name,
         "telegram_link": f"https://t.me/GetFreedomPostBot?start={api_key}",
-        "library_link": f"https://api.getfreedom.app/view/saved?key={api_key}",
+        "library_link": f"https://api.aithatjustworks.com/view/saved?key={api_key}",
         "extension_key": api_key,
     }
 
@@ -166,7 +166,7 @@ def onboard(body: dict):
 def get_skill():
     """Serve the viral-writer agent skill file."""
     from fastapi.responses import PlainTextResponse
-    api_host = "https://api.getfreedom.app"
+    api_host = "https://api.aithatjustworks.com"
     content = (TEMPLATES_DIR / "viral-writer.md").read_text()
     content = content.replace("{{API_HOST}}", api_host)
     return PlainTextResponse(content, media_type="text/markdown")
